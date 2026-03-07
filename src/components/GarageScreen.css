@@ -1,0 +1,126 @@
+/* ===========================
+   Garage Screen
+   =========================== */
+
+.garage-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.8);
+    z-index: 60;
+    animation: fadeIn 0.3s ease;
+}
+
+.garage-panel {
+    width: 520px;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.garage-title {
+    font-family: var(--font-display);
+    font-size: 24px;
+    font-weight: 800;
+    text-align: center;
+}
+
+.garage-contribs {
+    text-align: center;
+    font-size: 14px;
+    color: var(--accent-secondary);
+}
+
+.garage-tiers {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.garage-tier {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border-radius: var(--radius-md);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: all var(--transition-fast);
+}
+
+.garage-tier.current {
+    background: rgba(108, 92, 231, 0.1);
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 20px rgba(108, 92, 231, 0.15);
+}
+
+.garage-tier.locked {
+    opacity: 0.45;
+}
+
+.tier-indicator {
+    width: 10px;
+    height: 40px;
+    border-radius: 5px;
+    flex-shrink: 0;
+}
+
+.tier-info {
+    flex: 1;
+}
+
+.tier-name {
+    font-weight: 700;
+    font-size: 15px;
+}
+
+.tier-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.tier-req {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.tier-badge {
+    font-size: 10px;
+    font-weight: 800;
+    font-family: var(--font-display);
+    color: var(--accent-primary);
+    background: rgba(108, 92, 231, 0.2);
+    padding: 4px 10px;
+    border-radius: 20px;
+}
+
+.tier-lock {
+    font-size: 16px;
+}
+
+.garage-close-btn {
+    align-self: center;
+    padding: 12px 28px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: var(--font-body);
+    color: #fff;
+    background: var(--gradient-hero);
+    border: none;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    margin-top: 8px;
+}
+
+.garage-close-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-glow);
+}

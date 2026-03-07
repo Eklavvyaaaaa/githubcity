@@ -1,0 +1,257 @@
+/* ===========================
+   Landing Page
+   =========================== */
+
+.landing {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-primary);
+    overflow: hidden;
+}
+
+/* Grid background */
+.landing-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+        linear-gradient(rgba(108, 92, 231, 0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(108, 92, 231, 0.05) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse 60% 60% at 50% 50%, black 20%, transparent 70%);
+    -webkit-mask-image: radial-gradient(ellipse 60% 60% at 50% 50%, black 20%, transparent 70%);
+}
+
+/* Particles */
+.landing-particles {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+}
+
+.particle {
+    position: absolute;
+    width: 3px;
+    height: 3px;
+    background: var(--accent-secondary);
+    border-radius: 50%;
+    opacity: 0;
+    animation: particleFloat ease-in-out infinite;
+}
+
+@keyframes particleFloat {
+    0% {
+        opacity: 0;
+        transform: translateY(0) scale(0);
+    }
+
+    20% {
+        opacity: 0.6;
+    }
+
+    80% {
+        opacity: 0.3;
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateY(-100px) scale(1);
+    }
+}
+
+/* Content */
+.landing-content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    padding: 40px;
+}
+
+/* Logo */
+.landing-logo {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.logo-icon {
+    font-size: 56px;
+    animation: float 3s ease-in-out infinite;
+}
+
+.logo-text {
+    font-family: var(--font-display);
+    font-size: 52px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    line-height: 1;
+}
+
+.logo-github {
+    color: var(--text-primary);
+}
+
+.logo-city {
+    background: var(--gradient-hero);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Subtitle */
+.landing-subtitle {
+    font-size: 18px;
+    color: var(--text-secondary);
+    text-align: center;
+    max-width: 400px;
+    opacity: 0;
+}
+
+/* Search Form */
+.landing-form {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-top: 16px;
+    opacity: 0;
+}
+
+.input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.input-icon {
+    position: absolute;
+    left: 16px;
+    width: 20px;
+    height: 20px;
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.landing-input {
+    width: 340px;
+    padding: 16px 20px 16px 48px;
+    font-size: 16px;
+    font-family: var(--font-body);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: var(--border-subtle);
+    border-radius: var(--radius-lg);
+    outline: none;
+    transition: all var(--transition-normal);
+}
+
+.landing-input:focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px rgba(108, 92, 231, 0.15), var(--shadow-glow);
+    background: rgba(20, 20, 50, 0.8);
+}
+
+.landing-input::placeholder {
+    color: var(--text-muted);
+}
+
+.landing-button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 28px;
+    font-size: 16px;
+    font-weight: 600;
+    font-family: var(--font-body);
+    color: #fff;
+    background: var(--gradient-hero);
+    border: none;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition-normal);
+    white-space: nowrap;
+}
+
+.landing-button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-glow);
+}
+
+.landing-button:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.landing-button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.btn-arrow {
+    width: 18px;
+    height: 18px;
+    transition: transform var(--transition-normal);
+}
+
+.landing-button:hover:not(:disabled) .btn-arrow {
+    transform: translateX(4px);
+}
+
+/* Features */
+.landing-features {
+    display: flex;
+    gap: 32px;
+    margin-top: 32px;
+    opacity: 0;
+}
+
+.feature {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.feature-icon {
+    font-size: 18px;
+}
+
+/* Bottom fade */
+.landing-bottom-fade {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 120px;
+    background: linear-gradient(transparent, var(--bg-primary));
+    pointer-events: none;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+    .logo-text {
+        font-size: 36px;
+    }
+
+    .logo-icon {
+        font-size: 40px;
+    }
+
+    .landing-form {
+        flex-direction: column;
+    }
+
+    .landing-input {
+        width: 280px;
+    }
+
+    .landing-features {
+        flex-direction: column;
+        gap: 16px;
+    }
+}

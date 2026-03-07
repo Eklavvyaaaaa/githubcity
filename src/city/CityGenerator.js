@@ -1,0 +1,225 @@
+/**
+ * City Generator
+ * Transforms GitHub data into a 3D city layout
+ */
+
+import { getDistrictStyle, assignDistricts } from './districts'
+
+const BLOCK_SIZE = 12      // Size of one city block
+const ROAD_WIDTH = 4       // Width of roads
+const CELL_SIZE = BLOCK_SIZE + ROAD_WIDTH  // Total cell spacing
+const BUILDING_GAP = 1     // Gap between buildings
+
+/**
+ * Generate a complete city from GitHub data
+ */
+export function generateCity(user, repos) {
+    if (!repos || repos.length === 0) {
+        return {
+            buildings: [],
+            roads: [],
+            parks: [],
+            props: [],
+            districts: [],
+            bounds: { minX: -50, maxX: 50, minZ: -50, maxZ: 50 },
+        }
+    }
+
+    // Assign districts
+    const languages = assignDistricts(repos)
+    const districtMap = {}
+    languages.forEach((lang, i) => {
+        districtMap[lang] = i
+    })
+
+    // Sort repos into districts
+    const districtRepos = {}
+    for (const repo of repos) {
+        const lang = repo.language || 'Other'
+        if (!districtRepos[lang]) districtRepos[lang] = []
+        districtRepos[lang].push(repo)
+    }
+
+    // Layout: arrange districts in a spiral/grid pattern
+    const gridCols = Math.ceil(Math.sqrt(languages.length))
+    const buildings = []
+    const parks = []
+    const districts = []
+
+    languages.forEach((lang, districtIndex) => {
+        const dRepos = districtRepos[lang] || []
+        const style = getDistrictStyle(lang)
+
+        // District grid position
+        const distCol = districtIndex % gridCols
+        const distRow = Math.floor(districtIndex / gridCols)
+
+        // District offset in world space
+        const distOffsetX = distCol * CELL_SIZE * 4
+        const distOffsetZ = distRow * CELL_SIZE * 4
+
+        // Track district bounds
+        let dMinX = Infinity, dMaxX = -Infinity
+        let dMinZ = Infinity, dMaxZ = -Infinity
+
+        // Sort repos within district: pinned/starred first
+        const sorted = [...dRepos].sort((a, b) => {
+            const scoreA = (a.stargazers_count || 0) * 2 + (a.forks_count || 0)
+            const scoreB = (b.stargazers_count || 0) * 2 + (b.forks_count || 0)
+            return scoreB - scoreA
+        })
+
+        // Arrange buildings in a local grid
+        const localCols = Math.ceil(Math.sqrt(sorted.length))
+
+        sorted.forEach((repo, i) => {
+            const localCol = i % localCols
+            const localRow = Math.floor(i / localCols)
+
+            const x = distOffsetX + localCol * CELL_SIZE
+            const z = distOffsetZ + localRow * CELL_SIZE
+
+            // Building height based on stars + forks
+            const stars = repo.stargazers_count || 0
+            const forks = repo.forks_count || 0
+            const baseHeight = 3
+            const height = baseHeight + Math.log2(stars + 1) * 4 + Math.log2(forks + 1) * 2
+
+            // Building width (slight variation)
+            const width = 4 + Math.random() * 3
+            const depth = 4 + Math.random() * 3
+
+            // Age/weathering based on last push
+            const daysSinceUpdate = (Date.now() - new Date(repo.pushed_at).getTime()) / (1000 * 60 * 60 * 24)
+            const isWeathered = daysSinceUpdate > 365
+            const isInactive = daysSinceUpdate > 730
+
+            // Determine if repo has any real activity
+            const hasActivity = stars > 0 || forks > 0 || daysSinceUpdate < 365
+
+            if (!hasActivity && Math.random() > 0.5) {
+                // Zero-activity repo → park
+                parks.push({
+                    x, z,
+                    width: BLOCK_SIZE,
+                    depth: BLOCK_SIZE,
+                    district: lang,
+                })
+            } else {
+                buildings.push({
+                    id: repo.id,
+                    name: repo.name,
+                    fullName: repo.full_name,
+                    x, z,
+                    width,
+                    height: Math.max(height, 3),
+                    depth,
+                    color: style.primary,
+                    secondaryColor: style.secondary,
+                    accentColor: style.accent,
+                    buildingStyle: style.buildingStyle,
+                    stars,
+                    forks,
+                    language: lang,
+                    description: repo.description || '',
+                    isForked: repo.fork,
+                    isWeathered,
+                    isInactive,
+                    isPrivate: repo.private,
+                    isPinned: i < 3 && stars > 0, // Top 3 starred repos are "pinned"
+                    url: repo.html_url,
+                })
+            }
+
+            // Update district bounds
+            dMinX = Math.min(dMinX, x - BLOCK_SIZE / 2)
+            dMaxX = Math.max(dMaxX, x + BLOCK_SIZE / 2)
+            dMinZ = Math.min(dMinZ, z - BLOCK_SIZE / 2)
+            dMaxZ = Math.max(dMaxZ, z + BLOCK_SIZE / 2)
+        })
+
+        if (dRepos.length > 0) {
+            districts.push({
+                name: style.name,
+                language: lang,
+                style,
+                bounds: { minX: dMinX, maxX: dMaxX, minZ: dMinZ, maxZ: dMaxZ },
+                repoCount: dRepos.length,
+            })
+        }
+    })
+
+    // Calculate overall bounds
+    const allX = buildings.map(b => b.x).concat(parks.map(p => p.x))
+    const allZ = buildings.map(b => b.z).concat(parks.map(p => p.z))
+    const margin = 30
+    const bounds = {
+        minX: Math.min(...allX) - margin,
+        maxX: Math.max(...allX) + margin,
+        minZ: Math.min(...allZ) - margin,
+        maxZ: Math.max(...allZ) + margin,
+    }
+
+    // Generate roads along the grid lines
+    const roads = generateRoads(bounds)
+
+    // Generate street props
+    const props = generateProps(buildings, bounds)
+
+    return { buildings, roads, parks, props, districts, bounds }
+}
+
+/**
+ * Generate road segments along grid lines
+ */
+function generateRoads(bounds) {
+    const roads = []
+    const step = CELL_SIZE
+
+    // Horizontal roads
+    for (let z = Math.floor(bounds.minZ / step) * step; z <= bounds.maxZ; z += step) {
+        roads.push({
+            x1: bounds.minX, z1: z,
+            x2: bounds.maxX, z2: z,
+            width: ROAD_WIDTH,
+        })
+    }
+
+    // Vertical roads
+    for (let x = Math.floor(bounds.minX / step) * step; x <= bounds.maxX; x += step) {
+        roads.push({
+            x1: x, z1: bounds.minZ,
+            x2: x, z2: bounds.maxZ,
+            width: ROAD_WIDTH,
+        })
+    }
+
+    return roads
+}
+
+/**
+ * Generate street props (lamp posts, trees)
+ */
+function generateProps(buildings, bounds) {
+    const props = []
+    const step = CELL_SIZE
+
+    // Place street lamps along roads
+    for (let x = Math.floor(bounds.minX / step) * step; x <= bounds.maxX; x += step) {
+        for (let z = Math.floor(bounds.minZ / step) * step; z <= bounds.maxZ; z += step) {
+            // Lamp at intersection corners
+            props.push({ type: 'lamp', x: x - ROAD_WIDTH / 2 - 0.5, z: z - ROAD_WIDTH / 2 - 0.5 })
+
+            // Occasional trees
+            if (Math.random() > 0.6) {
+                props.push({
+                    type: 'tree',
+                    x: x + BLOCK_SIZE / 2 + (Math.random() - 0.5) * 2,
+                    z: z + BLOCK_SIZE / 2 + (Math.random() - 0.5) * 2,
+                })
+            }
+        }
+    }
+
+    return props
+}
