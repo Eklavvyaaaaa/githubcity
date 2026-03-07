@@ -80,7 +80,7 @@ function LoadingScreen() {
                 setMsgIndex(7)
                 await new Promise((r) => setTimeout(r, 600))
                 if (cancelled) return
-                setGamePhase('playing')
+                setGamePhase('intro')
 
             } catch (err) {
                 if (!cancelled) {
