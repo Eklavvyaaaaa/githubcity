@@ -400,12 +400,13 @@ function Car({ carTier, buildings }) {
         const s = state.current
         const dt = Math.min(delta, 0.05)
         const accel = maxSpeed * 1.8
-        const friction = 0.94
+        const dampingPer60 = 0.94
+        const damping = Math.pow(dampingPer60, dt * 60)
         const turnSpeed = 2.8
 
         if (s.keys.w) s.velocity = Math.min(s.velocity + accel * dt, maxSpeed)
         else if (s.keys.s) s.velocity = Math.max(s.velocity - accel * dt, -maxSpeed * 0.35)
-        else s.velocity *= friction
+        else s.velocity *= damping
 
         if (Math.abs(s.velocity) < 0.1) s.velocity = 0
 
@@ -507,6 +508,11 @@ function Car({ carTier, buildings }) {
 // ===========================
 // Camera Controller (uses shared ref, NO scene traversal)
 // ===========================
+// Preallocated vectors for camera (avoid per-frame GC)
+const _camOffset = new THREE.Vector3()
+const _camDesired = new THREE.Vector3()
+const _camLookAt = new THREE.Vector3()
+
 function CameraController() {
     const { camera } = useThree()
     const targetPos = useRef(new THREE.Vector3(0, 30, 40))
@@ -524,11 +530,12 @@ function CameraController() {
             initialized.current = true
         }
 
-        const offset = new THREE.Vector3(
-            Math.sin(carRot) * 18, 12, Math.cos(carRot) * 18
-        )
-        targetPos.current.lerp(carPos.clone().add(offset), 0.04)
-        lookTarget.current.lerp(carPos.clone().add(new THREE.Vector3(0, 2, 0)), 0.08)
+        _camOffset.set(Math.sin(carRot) * 18, 12, Math.cos(carRot) * 18)
+        _camDesired.copy(carPos).add(_camOffset)
+        targetPos.current.lerp(_camDesired, 0.04)
+
+        _camLookAt.copy(carPos).setY(carPos.y + 2)
+        lookTarget.current.lerp(_camLookAt, 0.08)
 
         camera.position.lerp(targetPos.current, 0.06)
         camera.lookAt(lookTarget.current)
@@ -596,11 +603,15 @@ function Rain() {
         return pos
     }, [])
 
-    useFrame(() => {
+    const fallSpeed = 48 // units per second
+
+    useFrame((_, delta) => {
         if (!rainRef.current) return
+        const dt = Math.min(delta, 0.05)
+        const fall = fallSpeed * dt
         const arr = rainRef.current.geometry.attributes.position.array
         for (let i = 0; i < count; i++) {
-            arr[i * 3 + 1] -= 0.8
+            arr[i * 3 + 1] -= fall
             if (arr[i * 3 + 1] < 0) arr[i * 3 + 1] = 50 + Math.random() * 10
         }
         rainRef.current.geometry.attributes.position.needsUpdate = true
@@ -643,7 +654,9 @@ function Billboards({ userData, repos, contributions, bounds }) {
 
     if (achievements.length === 0) return null
 
-    const radius = Math.min((bounds.maxX - bounds.minX) / 3, 60)
+    const spanX = bounds.maxX - bounds.minX
+    const spanZ = bounds.maxZ - bounds.minZ
+    const radius = Math.min(spanX, spanZ, 180) / 3
     const cx = (bounds.minX + bounds.maxX) / 2
     const cz = (bounds.minZ + bounds.maxZ) / 2
 
