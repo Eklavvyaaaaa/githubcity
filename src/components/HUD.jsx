@@ -35,6 +35,7 @@ function HUD() {
 
         // Capture screenshot
         const dataUrl = canvas.toDataURL('image/png')
+        const shareText = `🏙️ ${username}'s GitHub City\n\n📦 ${repos.length} repos | ⭐ ${totalStars} stars | 🔥 ${contributions} contributions\n🚗 Driving a ${CAR_TIER_NAMES[carTier]}\n\nBuild yours at: ${window.location.origin}`
 
         // Try native share first
         if (navigator.share && navigator.canShare) {
@@ -48,18 +49,17 @@ function HUD() {
                 })
                 setShareStatus('Shared!')
             } catch (e) {
-                if (e.name !== 'AbortError') fallbackCopy(dataUrl)
+                if (e.name !== 'AbortError') fallbackCopy(dataUrl, shareText)
             }
         } else {
-            fallbackCopy(dataUrl)
+            fallbackCopy(dataUrl, shareText)
         }
 
         setTimeout(() => setShareStatus(''), 2000)
-    }, [username, repos, contributions, carTier])
+    }, [username, repos, contributions, carTier, totalStars])
 
-    const fallbackCopy = async (dataUrl) => {
+    const fallbackCopy = async (dataUrl, text) => {
         // Copy share text to clipboard
-        const text = `🏙️ ${username}'s GitHub City\n\n📦 ${repos.length} repos | ⭐ ${totalStars} stars | 🔥 ${contributions} contributions\n🚗 Driving a ${CAR_TIER_NAMES[carTier]}\n\nBuild yours at: ${window.location.origin}`
         try {
             await navigator.clipboard.writeText(text)
             setShareStatus('Copied!')
