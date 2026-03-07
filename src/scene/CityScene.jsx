@@ -847,12 +847,21 @@ export default function CityScene() {
 
                 {/* Lighting — minimal lights for performance */}
                 <ambientLight intensity={0.35} color="#5566aa" />
-                <DayNightCycle />
+                <directionalLight position={[100, 100, 50]} intensity={1.5} color="#ffffff" />
                 <hemisphereLight intensity={0.2} color="#6666aa" groundColor="#000011" />
 
 
                 {/* Location Tracker for new HUD */}
                 <LocationTracker buildings={cityData.buildings} districts={cityData.districts} />
+
+                {/* The City Geometry */}
+                <CityEnvironment
+                    cityData={cityData}
+                    weather={weather}
+                    userData={userData}
+                    repos={repos}
+                    contributions={contributions}
+                />
 
                 {/* Weather */}
                 {weather === 'rainy' && <Rain />}

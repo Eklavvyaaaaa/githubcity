@@ -102,7 +102,7 @@ function LoadingScreen() {
             <div className="loading-content">
 
                 <h1 className="loading-title">
-                    {isCompareMode && compareUsername ? `BUILDING CITY: ${username} VS ${compareUsername}` : `BUILDING CITY: ${username}`}
+                    BUILDING CITY: {username}
                 </h1>
 
                 <div className="loading-bar-container">
