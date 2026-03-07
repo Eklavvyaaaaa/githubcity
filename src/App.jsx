@@ -85,7 +85,7 @@ function App() {
     <>
       {gamePhase === 'landing' && <LandingPage />}
       {gamePhase === 'loading' && <LoadingScreen />}
-      {(gamePhase === 'intro' || gamePhase === 'playing') && (
+      {['intro', 'playing', 'garage'].includes(gamePhase) && (
         <ErrorBoundary>
           <Suspense fallback={<SceneLoader />}>
             <CityScene />

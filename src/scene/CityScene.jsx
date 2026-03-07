@@ -513,23 +513,58 @@ const _camOffset = new THREE.Vector3()
 const _camDesired = new THREE.Vector3()
 const _camLookAt = new THREE.Vector3()
 
-function CameraController() {
+function CameraController({ bounds }) {
     const { camera } = useThree()
+    const gamePhase = useStore((s) => s.gamePhase)
+    const setGamePhase = useStore((s) => s.setGamePhase)
     const targetPos = useRef(new THREE.Vector3(0, 30, 40))
     const lookTarget = useRef(new THREE.Vector3(0, 0, 0))
-    const initialized = useRef(false)
+    const introTime = useRef(0)
+    const introDone = useRef(false)
 
-    useFrame(() => {
+    const cityCenter = useMemo(() => {
+        if (!bounds) return new THREE.Vector3(0, 0, 0)
+        return new THREE.Vector3(
+            (bounds.minX + bounds.maxX) / 2,
+            0,
+            (bounds.minZ + bounds.maxZ) / 2
+        )
+    }, [bounds])
+
+    const citySpan = useMemo(() => {
+        if (!bounds) return 60
+        return Math.max(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ) / 2
+    }, [bounds])
+
+    useFrame((_, delta) => {
         const carPos = carStateRef.current.position
         const carRot = carStateRef.current.rotation
 
-        if (!initialized.current) {
-            targetPos.current.set(carPos.x, 40, carPos.z + 40)
-            lookTarget.current.copy(carPos)
-            camera.position.copy(targetPos.current)
-            initialized.current = true
+        // Intro flythrough (4 seconds)
+        if (gamePhase === 'intro' || (gamePhase === 'playing' && !introDone.current && introTime.current < 4)) {
+            introTime.current += delta
+            const t = Math.min(introTime.current / 4, 1)
+            const eased = 1 - Math.pow(1 - t, 3) // ease-out cubic
+
+            // Orbit around city center, descending
+            const orbitRadius = citySpan * (1.2 - eased * 0.6)
+            const orbitAngle = t * Math.PI * 1.5
+            const height = 60 - eased * 45
+
+            const cx = cityCenter.x + Math.cos(orbitAngle) * orbitRadius
+            const cz = cityCenter.z + Math.sin(orbitAngle) * orbitRadius
+
+            camera.position.set(cx, height, cz)
+            camera.lookAt(cityCenter.x, 5, cityCenter.z)
+
+            if (t >= 1) {
+                introDone.current = true
+                if (gamePhase === 'intro') setGamePhase('playing')
+            }
+            return
         }
 
+        // Normal driving camera
         _camOffset.set(Math.sin(carRot) * 18, 12, Math.cos(carRot) * 18)
         _camDesired.copy(carPos).add(_camOffset)
         targetPos.current.lerp(_camDesired, 0.04)
@@ -750,24 +785,28 @@ function BuildingTooltip({ buildings }) {
         setNearbyBuilding(closest)
     })
 
-    if (!nearbyBuilding) return null
-
     return (
-        <Html position={[nearbyBuilding.x, nearbyBuilding.height + 2, nearbyBuilding.z]} center>
-            <div style={{
-                background: 'rgba(10,10,30,0.92)',
-                border: '1px solid rgba(108,92,231,0.4)',
-                borderRadius: '10px', padding: '10px 16px',
-                color: '#e8e8f0', fontSize: '13px',
-                fontFamily: 'Inter, sans-serif',
-                whiteSpace: 'nowrap', backdropFilter: 'blur(10px)',
-                pointerEvents: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
-            }}>
-                <div style={{ fontWeight: 700, marginBottom: '3px' }}>{nearbyBuilding.name}</div>
-                <div style={{ fontSize: '11px', color: '#8888aa' }}>
-                    ⭐ {nearbyBuilding.stars} &nbsp; 🍴 {nearbyBuilding.forks} &nbsp; {nearbyBuilding.language}
+        <Html
+            position={nearbyBuilding ? [nearbyBuilding.x, nearbyBuilding.height + 2, nearbyBuilding.z] : [0, 0, 0]}
+            center
+            style={{ display: nearbyBuilding ? 'block' : 'none' }}
+        >
+            {nearbyBuilding && (
+                <div style={{
+                    background: 'rgba(10,10,30,0.92)',
+                    border: '1px solid rgba(108,92,231,0.4)',
+                    borderRadius: '10px', padding: '10px 16px',
+                    color: '#e8e8f0', fontSize: '13px',
+                    fontFamily: 'Inter, sans-serif',
+                    whiteSpace: 'nowrap', backdropFilter: 'blur(10px)',
+                    pointerEvents: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+                }}>
+                    <div style={{ fontWeight: 700, marginBottom: '3px' }}>{nearbyBuilding.name}</div>
+                    <div style={{ fontSize: '11px', color: '#8888aa' }}>
+                        ⭐ {nearbyBuilding.stars} &nbsp; 🍴 {nearbyBuilding.forks} &nbsp; {nearbyBuilding.language}
+                    </div>
                 </div>
-            </div>
+            )}
         </Html>
     )
 }
@@ -803,6 +842,7 @@ function CityScene() {
                     toneMapping: THREE.ACESFilmicToneMapping,
                     toneMappingExposure: 1.0,
                     powerPreference: 'high-performance',
+                    preserveDrawingBuffer: true,
                 }}
             >
                 <color attach="background" args={[fogColor]} />
@@ -829,7 +869,7 @@ function CityScene() {
 
                 {/* Car + Camera */}
                 <Car carTier={carTier} buildings={buildings} />
-                <CameraController />
+                <CameraController bounds={bounds} />
             </Canvas>
         </div>
     )
