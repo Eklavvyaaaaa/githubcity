@@ -1,16 +1,65 @@
-# React + Vite
+# 🏙️ GitHub City
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Your GitHub profile as a 3D city you can drive through.**
 
-Currently, two official plugins are available:
+GitHub City transforms any GitHub profile into a fully explorable 3D city. Repositories become buildings, contributions determine your car, and your coding activity shapes the world.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## ✨ Features
 
-## React Compiler
+- **Repos → Buildings** — Each repository becomes a building. More stars and forks = taller buildings
+- **Language Districts** — Buildings grouped by programming language, each with unique colors
+- **6 Car Tiers** — From Rusty Jalopy (0 contributions) to Hypercar (2000+)
+- **WASD Driving** — Drive through your city with smooth third-person camera
+- **Day/Night Cycle** — Real-time sky changes based on actual time
+- **Weather System** — Active devs get clear skies, inactive devs get fog and rain
+- **Achievement Billboards** — Discover your GitHub milestones scattered throughout the city
+- **Landmark Buildings** — Top-starred repos become towering monuments
+- **Garage Screen** — See your car tier and what's needed to upgrade
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🚀 Quick Start
 
-## Expanding the ESLint configuration
+```bash
+# Clone
+git clone https://github.com/Eklavvyaaaaa/githubcity.git
+cd githubcity
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+# Install
+npm install
+
+# Run
+npm run dev
+```
+
+Open [http://localhost:5173](http://localhost:5173) and enter any GitHub username!
+
+## 🔑 GitHub Token (Optional)
+
+Without a token, you get 60 API requests/hour. For heavy use:
+
+1. Go to [GitHub Settings → Tokens](https://github.com/settings/tokens)
+2. Create a token (no scopes needed for public data)
+3. Paste it in the "Add GitHub token" field on the landing page
+
+## 🏗️ Tech Stack
+
+- **Three.js** + **React Three Fiber** — 3D rendering
+- **Vite** — Build tool
+- **Zustand** — State management
+- **Procedural geometry** — All assets generated in code (no external 3D files)
+
+## 📦 Project Structure
+
+```
+src/
+├── car/           # Car models & driving controller
+├── city/          # City generation engine & districts
+├── components/    # UI (Landing, HUD, Garage, Loading)
+├── scene/         # 3D scene (CityScene, buildings, roads)
+├── services/      # GitHub API
+├── store/         # Zustand state
+└── styles/        # Global CSS
+```
+
+## 📄 License
+
+MIT

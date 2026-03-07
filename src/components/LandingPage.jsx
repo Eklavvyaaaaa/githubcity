@@ -4,13 +4,20 @@ import './LandingPage.css'
 
 function LandingPage() {
     const [input, setInput] = useState('')
+    const [showToken, setShowToken] = useState(false)
+    const [tokenInput, setTokenInput] = useState('')
+    const error = useStore((s) => s.error)
+    const setError = useStore((s) => s.setError)
     const setUsername = useStore((s) => s.setUsername)
     const setGamePhase = useStore((s) => s.setGamePhase)
+    const setGithubToken = useStore((s) => s.setGithubToken)
 
     const handleSubmit = (e) => {
         e.preventDefault()
         const name = input.trim()
         if (!name) return
+        setError(null)
+        if (tokenInput.trim()) setGithubToken(tokenInput.trim())
         setUsername(name)
         setGamePhase('loading')
     }
@@ -73,7 +80,30 @@ function LandingPage() {
                     </button>
                 </form>
 
-                {/* Features */}
+                {/* Error message */}
+                {error && (
+                    <div className="landing-error animate-fade-in">
+                        <span>⚠️ {error}</span>
+                        <button onClick={() => setError(null)} className="error-dismiss">✕</button>
+                    </div>
+                )}
+
+                {/* Optional token input */}
+                <button className="token-toggle" onClick={() => setShowToken(!showToken)} style={{ animationDelay: '0.6s' }}>
+                    {showToken ? 'Hide token input' : '🔑 Add GitHub token (optional)'}
+                </button>
+                {showToken && (
+                    <div className="token-input-wrapper animate-fade-in">
+                        <input
+                            type="password"
+                            value={tokenInput}
+                            onChange={(e) => setTokenInput(e.target.value)}
+                            placeholder="ghp_xxxxxxxxxxxx"
+                            className="landing-input token-input"
+                        />
+                        <p className="token-hint">For higher API rate limits (5000/hr vs 60/hr)</p>
+                    </div>
+                )}
                 <div className="landing-features animate-fade-in" style={{ animationDelay: '0.8s' }}>
                     <div className="feature">
                         <span className="feature-icon">🏗️</span>
