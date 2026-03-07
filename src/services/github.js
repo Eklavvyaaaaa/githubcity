@@ -126,3 +126,54 @@ export function determineWeather(repos) {
     if (monthPushes >= 1) return 'foggy'
     return 'rainy'
 }
+
+/**
+ * Language → Biome color mapping
+ */
+const LANGUAGE_BIOMES = {
+    JavaScript: { ground: '#3d3520', sky: '#1a1508', fog: '#1a1508' },   // Golden desert
+    TypeScript: { ground: '#1e2d3d', sky: '#0a1520', fog: '#0a1520' },   // Blue tundra
+    Python: { ground: '#1a2a3a', sky: '#081828', fog: '#081828' },    // Deep ocean
+    Java: { ground: '#3a2020', sky: '#1a0808', fog: '#1a0808' },    // Red mesa
+    'C++': { ground: '#2a2a3a', sky: '#10101a', fog: '#10101a' },    // Purple dusk
+    C: { ground: '#2a2a3a', sky: '#10101a', fog: '#10101a' },    // Purple dusk
+    'C#': { ground: '#252040', sky: '#0d0a1a', fog: '#0d0a1a' },    // Violet twilight
+    Go: { ground: '#203a3a', sky: '#081a1a', fog: '#081a1a' },     // Cyan marsh
+    Rust: { ground: '#3a2510', sky: '#1a1008', fog: '#1a1008' },     // Rust canyon
+    Ruby: { ground: '#3a1525', sky: '#1a0810', fog: '#1a0810' },     // Ruby caves
+    PHP: { ground: '#2a2540', sky: '#10101a', fog: '#10101a' },     // Indigo plains
+    Swift: { ground: '#3a2820', sky: '#1a1208', fog: '#1a1208' },     // Orange mesa
+    Kotlin: { ground: '#352535', sky: '#150a15', fog: '#150a15' },     // Magenta forest
+    HTML: { ground: '#3a2520', sky: '#1a1008', fog: '#1a1008' },     // Orange terracotta
+    CSS: { ground: '#202a3a', sky: '#081018', fog: '#081018' },     // Blue steel
+    Shell: { ground: '#253025', sky: '#0a150a', fog: '#0a150a' },     // Forest green
+    Dart: { ground: '#203540', sky: '#081520', fog: '#081520' },     // Teal ocean
+    Vue: { ground: '#20352a', sky: '#081510', fog: '#081510' },     // Emerald valley
+    Lua: { ground: '#1a1a3a', sky: '#08081a', fog: '#08081a' },     // Midnight blue
+}
+
+const DEFAULT_BIOME = { ground: '#2b3a32', sky: '#070714', fog: '#070714' } // Default dark navy
+
+/**
+ * Calculate biome from repos' most used language
+ */
+export function calculateBiome(repos) {
+    if (!repos || repos.length === 0) return DEFAULT_BIOME
+
+    const langCount = {}
+    for (const r of repos) {
+        const lang = r.language
+        if (lang) langCount[lang] = (langCount[lang] || 0) + 1
+    }
+
+    let topLang = null
+    let topCount = 0
+    for (const [lang, count] of Object.entries(langCount)) {
+        if (count > topCount) {
+            topLang = lang
+            topCount = count
+        }
+    }
+
+    return LANGUAGE_BIOMES[topLang] || DEFAULT_BIOME
+}

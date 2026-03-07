@@ -3,6 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import useStore from '../store/store'
+import { startEngine, updateEngineSound, stopEngine, playTireScreech, playJumpSound, playLandThud, playCoinCollect } from '../services/audio'
 
 // ===========================
 // Shared materials (reuse across all meshes)
@@ -349,17 +350,25 @@ const CAR_CONFIGS = [
 // Ref to share car position with camera without scene traversal
 const carStateRef = { current: { position: new THREE.Vector3(8, 0, 8), rotation: 0 } }
 
-function Car({ carTier, buildings }) {
+function Car({ carTier, buildings, spawnPos }) {
     const groupRef = useRef()
     const setCarSpeed = useStore((s) => s.setCarSpeed)
     const config = CAR_CONFIGS[carTier] || CAR_CONFIGS[0]
     const { bodyH, bodyW, bodyL, roofH, roofL, speed: maxSpeed, wheelR } = config
 
+    const sx = spawnPos?.x ?? 8
+    const sz = spawnPos?.z ?? 8
+
     const state = useRef({
         velocity: 0,
         rotation: 0,
-        position: new THREE.Vector3(8, 0, 8),
+        position: new THREE.Vector3(sx, 0, sz),
         keys: {},
+        // Jump state
+        yVelocity: 0,
+        isGrounded: true,
+        // Turning tracker for screech
+        prevTurnRate: 0,
     })
 
     // Build spatial hash for collision detection (O(1) instead of O(n))
@@ -383,13 +392,14 @@ function Car({ carTier, buildings }) {
     useEffect(() => {
         const onKey = (e) => {
             const key = e.key.toLowerCase()
-            const map = { w: 'w', arrowup: 'w', s: 's', arrowdown: 's', a: 'a', arrowleft: 'a', d: 'd', arrowright: 'd' }
+            const map = { w: 'w', arrowup: 'w', s: 's', arrowdown: 's', a: 'a', arrowleft: 'a', d: 'd', arrowright: 'd', ' ': 'space' }
             const mapped = map[key]
             if (mapped) state.current.keys[mapped] = e.type === 'keydown'
         }
         window.addEventListener('keydown', onKey)
         window.addEventListener('keyup', onKey)
-        return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey) }
+        startEngine()
+        return () => { window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKey); stopEngine() }
     }, [])
 
     useFrame((_, delta) => {
@@ -437,8 +447,26 @@ function Car({ carTier, buildings }) {
         if (!collided) { s.position.x = newX; s.position.z = newZ }
         else s.velocity *= -0.2
 
+        // --- Jump physics ---
+        if (s.keys.space && s.isGrounded) {
+            s.yVelocity = 12
+            s.isGrounded = false
+            playJumpSound()
+        }
+
+        if (!s.isGrounded) {
+            s.yVelocity -= 30 * dt  // gravity
+            s.position.y += s.yVelocity * dt
+            if (s.position.y <= 0) {
+                s.position.y = 0
+                s.yVelocity = 0
+                s.isGrounded = true
+                playLandThud()
+            }
+        }
+
         if (groupRef.current) {
-            groupRef.current.position.set(s.position.x, 0, s.position.z)
+            groupRef.current.position.set(s.position.x, s.position.y, s.position.z)
             groupRef.current.rotation.y = s.rotation
         }
 
@@ -447,6 +475,15 @@ function Car({ carTier, buildings }) {
         carStateRef.current.rotation = s.rotation
 
         setCarSpeed(Math.abs(s.velocity) * 3.6)
+
+        // --- Engine sound pitch ---
+        updateEngineSound(s.velocity, maxSpeed)
+
+        // --- Tire screech on sharp turns at speed ---
+        const turnRate = Math.abs((s.keys.a ? 1 : 0) - (s.keys.d ? 1 : 0))
+        if (turnRate > 0 && Math.abs(s.velocity) > maxSpeed * 0.5) {
+            playTireScreech()
+        }
     })
 
     const carMaterial = useMemo(() => (
@@ -780,6 +817,115 @@ function LocationTracker({ buildings, districts }) {
 }
 
 // ===========================
+// Garage Structure (3D building at spawn point)
+// ===========================
+function GarageStructure({ pos }) {
+    const gx = pos.x
+    const gz = pos.z
+    const wallMat = useMemo(() => new THREE.MeshLambertMaterial({ color: '#3a3a4a', flatShading: true }), [])
+    const roofMat = useMemo(() => new THREE.MeshLambertMaterial({ color: '#2a2a3a', flatShading: true }), [])
+    const padMat = useMemo(() => new THREE.MeshLambertMaterial({ color: '#555555', flatShading: true }), [])
+
+    return (
+        <group position={[gx, 0, gz]}>
+            {/* Ground pad */}
+            <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]} material={padMat}>
+                <planeGeometry args={[14, 12]} />
+            </mesh>
+
+            {/* Back wall */}
+            <mesh position={[0, 3, -5]} material={wallMat}>
+                <boxGeometry args={[14, 6, 0.4]} />
+            </mesh>
+
+            {/* Left wall */}
+            <mesh position={[-7, 3, 0]} material={wallMat}>
+                <boxGeometry args={[0.4, 6, 10]} />
+            </mesh>
+
+            {/* Right wall */}
+            <mesh position={[7, 3, 0]} material={wallMat}>
+                <boxGeometry args={[0.4, 6, 10]} />
+            </mesh>
+
+            {/* Roof */}
+            <mesh position={[0, 6.1, -0.5]} material={roofMat}>
+                <boxGeometry args={[14.8, 0.3, 11]} />
+            </mesh>
+        </group>
+    )
+}
+
+// ===========================
+// Commit Coins (Mini-Game)
+// ===========================
+const COIN_GEO = new THREE.CylinderGeometry(0.6, 0.6, 0.15, 12)
+const COIN_MAT = new THREE.MeshLambertMaterial({ color: '#FFD700', emissive: '#CC9900', emissiveIntensity: 0.5, flatShading: true })
+
+function CommitCoins({ buildings }) {
+    const meshRef = useRef()
+    const collectCoin = useStore((s) => s.collectCoin)
+    const collectedCoinIds = useStore((s) => s.collectedCoinIds)
+    const setTotalCoins = useStore((s) => s.setTotalCoins)
+
+    // Pick top-starred buildings as coin locations (max 20)
+    const coinPositions = useMemo(() => {
+        const sorted = [...buildings]
+            .filter(b => b.stars > 0)
+            .sort((a, b) => b.stars - a.stars)
+            .slice(0, 20)
+        setTotalCoins(sorted.length)
+        return sorted.map(b => ({
+            id: b.id,
+            x: b.x,
+            y: b.height + 3,
+            z: b.z,
+        }))
+    }, [buildings])
+
+    const dummy = useMemo(() => new THREE.Object3D(), [])
+
+    useFrame((_, delta) => {
+        if (!meshRef.current) return
+        const t = performance.now() * 0.001 // time in seconds
+        const carPos = carStateRef.current.position
+
+        let idx = 0
+        for (const coin of coinPositions) {
+            if (collectedCoinIds.has(coin.id)) {
+                // Hide collected coin far away
+                dummy.position.set(0, -1000, 0)
+                dummy.scale.set(0, 0, 0)
+            } else {
+                // Floating + rotating animation
+                dummy.position.set(coin.x, coin.y + Math.sin(t * 2 + coin.x) * 0.5, coin.z)
+                dummy.rotation.set(Math.PI / 2, t * 3 + coin.x, 0)
+                dummy.scale.set(1, 1, 1)
+
+                // Proximity check against car
+                const dx = carPos.x - coin.x
+                const dz = carPos.z - coin.z
+                const dist = Math.sqrt(dx * dx + dz * dz)
+                if (dist < 4) {
+                    collectCoin(coin.id)
+                    playCoinCollect()
+                }
+            }
+            dummy.updateMatrix()
+            meshRef.current.setMatrixAt(idx, dummy.matrix)
+            idx++
+        }
+        meshRef.current.instanceMatrix.needsUpdate = true
+    })
+
+    if (coinPositions.length === 0) return null
+
+    return (
+        <instancedMesh ref={meshRef} args={[COIN_GEO, COIN_MAT, coinPositions.length]} />
+    )
+}
+
+// ===========================
 // Main City Scene
 // ===========================
 
@@ -819,11 +965,13 @@ export default function CityScene() {
     const repos = useStore((s) => s.repos)
     const contributions = useStore((s) => s.contributions)
 
+    const biomeColor = useStore((s) => s.biomeColor)
+
     if (!cityData) return null
 
-    const { buildings, parks, props, districts, bounds } = cityData
+    const { buildings, parks, props, districts, bounds, garageSpawn } = cityData
 
-    const fogColor = weather === 'clear' ? '#070714' : weather === 'cloudy' ? '#0d0d20' : '#050510'
+    const fogColor = biomeColor.fog
     const fogNear = weather === 'foggy' ? 15 : weather === 'rainy' ? 30 : 60
     const fogFar = weather === 'foggy' ? 60 : weather === 'rainy' ? 100 : 250
 
@@ -867,8 +1015,14 @@ export default function CityScene() {
                 {weather === 'rainy' && <Rain />}
 
                 {/* Car + Camera */}
-                <Car carTier={carTier} buildings={buildings} />
+                <Car carTier={carTier} buildings={buildings} spawnPos={garageSpawn} />
                 <CameraController bounds={bounds} />
+
+                {/* Garage Structure at Spawn */}
+                {garageSpawn && <GarageStructure pos={garageSpawn} />}
+
+                {/* Commit Coins Mini-Game */}
+                <CommitCoins buildings={buildings} />
             </Canvas>
         </div>
     )

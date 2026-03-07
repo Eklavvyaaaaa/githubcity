@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
 import useStore from '../store/store'
+import { playUIClick } from '../services/audio'
 import './HUD.css'
 
 const CAR_TIER_NAMES = [
@@ -20,6 +21,8 @@ function HUD() {
     const username = useStore((s) => s.username)
     const repos = useStore((s) => s.repos)
     const contributions = useStore((s) => s.contributions)
+    const coinsCollected = useStore((s) => s.coinsCollected)
+    const totalCoins = useStore((s) => s.totalCoins)
 
     const setGamePhase = useStore((s) => s.setGamePhase)
     const reset = useStore((s) => s.reset)
@@ -89,6 +92,8 @@ function HUD() {
             <div className="hud-controls-hint">
                 <span className="key">W</span><span className="key">A</span><span className="key">S</span><span className="key">D</span>
                 <span className="controls-label">TO DRIVE</span>
+                <span className="key" style={{ marginLeft: '12px' }}>SPACE</span>
+                <span className="controls-label">TO JUMP</span>
             </div>
 
             {/* 2D Building Tooltip */}
@@ -122,13 +127,20 @@ function HUD() {
                         <span className="speed-unit">KM/H</span>
                     </div>
 
+                    {totalCoins > 0 && (
+                        <div className="hud-coins">
+                            <span className="coin-icon">🪙</span>
+                            <span className="coin-count">{coinsCollected}/{totalCoins}</span>
+                        </div>
+                    )}
+
                     <div className="hud-actions">
-                        <button className="hud-btn" onClick={() => setGamePhase('garage')}>GARAGE</button>
-                        <button className="hud-btn" onClick={handleScreenshot} title="Screenshot">📸</button>
-                        <button className="hud-btn hud-btn-primary" onClick={handleShare}>
+                        <button className="hud-btn" onClick={() => { playUIClick(); setGamePhase('garage') }}>GARAGE</button>
+                        <button className="hud-btn" onClick={() => { playUIClick(); handleScreenshot() }} title="Screenshot">📸</button>
+                        <button className="hud-btn hud-btn-primary" onClick={() => { playUIClick(); handleShare() }}>
                             {shareStatus || 'SHARE'}
                         </button>
-                        <button className="hud-btn" onClick={reset} title="Exit">EXIT</button>
+                        <button className="hud-btn" onClick={() => { playUIClick(); reset() }} title="Exit">EXIT</button>
                     </div>
                 </div>
 

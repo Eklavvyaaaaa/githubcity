@@ -79,15 +79,20 @@ export function generateCity(user, repos) {
             const x = distOffsetX + localCol * CELL_SIZE
             const z = distOffsetZ + localRow * CELL_SIZE
 
-            // Building height based on stars + forks
+            // Building height based on stars + forks + code size
             const stars = repo.stargazers_count || 0
             const forks = repo.forks_count || 0
-            const baseHeight = 3
-            const height = baseHeight + Math.log2(stars + 1) * 4 + Math.log2(forks + 1) * 2
+            const size = repo.size || 0  // KB of code — proxy for commit activity
+            const baseHeight = 4
+            const height = baseHeight
+                + Math.log2(stars + 1) * 4
+                + Math.log2(forks + 1) * 2
+                + Math.log2(size + 1) * 1.5   // bigger repos = taller buildings
 
-            // Building width (slight variation)
-            const width = 4 + Math.random() * 3
-            const depth = 4 + Math.random() * 3
+            // Building width & depth scale with repo size (more code → bigger footprint)
+            const sizeBonus = Math.log2(size + 1) * 0.8  // ~0 for empty, ~8 for large repos
+            const width = 5 + Math.random() * 2 + Math.min(sizeBonus, 7)
+            const depth = 5 + Math.random() * 2 + Math.min(sizeBonus * 1.3, 9)
 
             // Age/weathering based on last push
             const daysSinceUpdate = (Date.now() - new Date(repo.pushed_at).getTime()) / (1000 * 60 * 60 * 24)
@@ -160,13 +165,19 @@ export function generateCity(user, repos) {
         maxZ: Math.max(...allZ) + margin,
     }
 
+    // Garage spawn point — placed south of the city, away from all buildings
+    const garageSpawn = {
+        x: (bounds.minX + bounds.maxX) / 2,  // centered horizontally
+        z: bounds.maxZ + 15,                  // 15 units past the south edge
+    }
+
     // Generate roads along the grid lines
     const roads = generateRoads(bounds)
 
     // Generate street props
     const props = generateProps(buildings, bounds)
 
-    return { buildings, roads, parks, props, districts, bounds }
+    return { buildings, roads, parks, props, districts, bounds, garageSpawn }
 }
 
 /**

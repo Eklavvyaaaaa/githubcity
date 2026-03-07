@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import useStore from '../store/store'
+import { playUIClick } from '../services/audio'
 import './LandingPage.css'
 
 function LandingPage() {
@@ -72,6 +73,7 @@ function LandingPage() {
                         type="submit"
                         className="landing-button"
                         disabled={!inputVal.trim()}
+                        onClick={playUIClick}
                     >
                         BUILD CITY
                     </button>

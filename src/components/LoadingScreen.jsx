@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import useStore from '../store/store'
-import { fetchUser, fetchAllRepos, fetchContributions, getCarTier, determineWeather } from '../services/github'
+import { fetchUser, fetchAllRepos, fetchContributions, getCarTier, determineWeather, calculateBiome } from '../services/github'
 import { generateCity } from '../city/CityGenerator'
 import { generateCityName } from '../city/nameGen'
 import './LoadingScreen.css'
@@ -29,6 +29,7 @@ function LoadingScreen() {
     const setGamePhase = useStore((s) => s.setGamePhase)
     const setError = useStore((s) => s.setError)
     const githubToken = useStore((s) => s.githubToken)
+    const setBiomeColor = useStore((s) => s.setBiomeColor)
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -51,6 +52,10 @@ function LoadingScreen() {
                 const repos = await fetchAllRepos(username, githubToken)
                 if (cancelled) return
                 setRepos(repos)
+
+                // Calculate biome from top language
+                const biome = calculateBiome(repos)
+                setBiomeColor(biome)
 
                 setMsgIndex(2)
                 const contribs = await fetchContributions(username)

@@ -99,6 +99,17 @@
     background: rgba(108, 92, 231, 0.2);
     padding: 4px 10px;
     border-radius: 20px;
+    white-space: nowrap;
+}
+
+.tier-badge-select {
+    color: rgba(255, 255, 255, 0.5);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.garage-tier.unlocked:not(.current):hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.15);
 }
 
 .tier-lock {

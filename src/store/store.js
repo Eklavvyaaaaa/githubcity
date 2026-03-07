@@ -8,27 +8,27 @@ const useStore = create((set, get) => ({
   // User data
   username: '',
   setUsername: (username) => set({ username }),
-  
+
   userData: null,
   setUserData: (userData) => set({ userData }),
-  
+
   repos: [],
   setRepos: (repos) => set({ repos }),
-  
+
   contributions: 0,
   setContributions: (contributions) => set({ contributions }),
 
   // City data (generated from GitHub data)
   cityData: null,
   setCityData: (cityData) => set({ cityData }),
-  
+
   cityName: '',
   setCityName: (cityName) => set({ cityName }),
 
   // Car state
   carTier: 0,
   setCarTier: (carTier) => set({ carTier }),
-  
+
   carSpeed: 0,
   setCarSpeed: (carSpeed) => set({ carSpeed }),
 
@@ -56,6 +56,23 @@ const useStore = create((set, get) => ({
   githubToken: '',
   setGithubToken: (token) => set({ githubToken: token }),
 
+  // Dynamic Biome (based on top language)
+  biomeColor: { ground: '#2b3a32', sky: '#070714', fog: '#070714' },
+  setBiomeColor: (biomeColor) => set({ biomeColor }),
+
+  // Coin Collection Mini-Game
+  coinsCollected: 0,
+  totalCoins: 0,
+  collectedCoinIds: new Set(),
+  collectCoin: (id) => {
+    const s = get()
+    if (s.collectedCoinIds.has(id)) return
+    const newSet = new Set(s.collectedCoinIds)
+    newSet.add(id)
+    set({ collectedCoinIds: newSet, coinsCollected: s.coinsCollected + 1 })
+  },
+  setTotalCoins: (n) => set({ totalCoins: n }),
+
   // Error
   error: null,
   setError: (error) => set({ error }),
@@ -75,6 +92,10 @@ const useStore = create((set, get) => ({
     loadingMessage: '',
     loadingProgress: 0,
     error: null,
+    biomeColor: { ground: '#2b3a32', sky: '#070714', fog: '#070714' },
+    coinsCollected: 0,
+    totalCoins: 0,
+    collectedCoinIds: new Set(),
   }),
 }))
 

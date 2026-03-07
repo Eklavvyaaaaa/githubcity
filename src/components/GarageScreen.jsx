@@ -1,4 +1,5 @@
 import useStore from '../store/store'
+import { playUIClick } from '../services/audio'
 import './GarageScreen.css'
 
 const CAR_TIERS = [
@@ -12,36 +13,55 @@ const CAR_TIERS = [
 
 function GarageScreen() {
     const carTier = useStore((s) => s.carTier)
+    const setCarTier = useStore((s) => s.setCarTier)
     const contributions = useStore((s) => s.contributions)
     const setGamePhase = useStore((s) => s.setGamePhase)
+
+    // The max tier unlocked based on contributions
+    const maxUnlockedTier = CAR_TIERS.reduce((max, tier, i) => {
+        return contributions >= tier.minContribs ? i : max
+    }, 0)
+
+    const handleSelect = (tierIndex) => {
+        if (tierIndex <= maxUnlockedTier) {
+            playUIClick()
+            setCarTier(tierIndex)
+        }
+    }
 
     return (
         <div className="garage-overlay">
             <div className="garage-panel glass-strong">
-                <h2 className="garage-title">🏎️ Your Garage</h2>
-                <p className="garage-contribs">{contributions.toLocaleString()} contributions this year</p>
+                <h2 className="garage-title">YOUR GARAGE</h2>
+                <p className="garage-contribs">{contributions.toLocaleString()} CONTRIBUTIONS THIS YEAR</p>
 
                 <div className="garage-tiers">
                     {CAR_TIERS.map((tier, i) => {
-                        const unlocked = i <= carTier
-                        const current = i === carTier
+                        const unlocked = i <= maxUnlockedTier
+                        const selected = i === carTier
                         return (
-                            <div key={tier.name} className={`garage-tier ${unlocked ? 'unlocked' : 'locked'} ${current ? 'current' : ''}`}>
+                            <div
+                                key={tier.name}
+                                className={`garage-tier ${unlocked ? 'unlocked' : 'locked'} ${selected ? 'current' : ''}`}
+                                onClick={() => handleSelect(i)}
+                                style={{ cursor: unlocked ? 'pointer' : 'not-allowed' }}
+                            >
                                 <div className="tier-indicator" style={{ background: unlocked ? tier.color : 'rgba(255,255,255,0.1)' }} />
                                 <div className="tier-info">
                                     <div className="tier-name">{tier.name}</div>
                                     <div className="tier-desc">{tier.desc}</div>
                                     <div className="tier-req">{tier.minContribs}+ contributions</div>
                                 </div>
-                                {current && <span className="tier-badge">CURRENT</span>}
+                                {selected && <span className="tier-badge">EQUIPPED</span>}
+                                {unlocked && !selected && <span className="tier-badge tier-badge-select">SELECT</span>}
                                 {!unlocked && <span className="tier-lock">🔒</span>}
                             </div>
                         )
                     })}
                 </div>
 
-                <button className="garage-close-btn" onClick={() => setGamePhase('playing')}>
-                    Back to City
+                <button className="garage-close-btn" onClick={() => { playUIClick(); setGamePhase('playing') }}>
+                    BACK TO CITY
                 </button>
             </div>
         </div>
