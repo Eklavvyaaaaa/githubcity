@@ -1,0 +1,99 @@
+.compare-container {
+    display: flex;
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    background-color: #1a1f35;
+    font-family: 'Space Mono', 'Courier New', monospace;
+}
+
+.compare-half {
+    flex: 1;
+    position: relative;
+    height: 100%;
+}
+
+.compare-divider {
+    width: 4px;
+    height: 100%;
+    background-color: #ffffff;
+    z-index: 50;
+}
+
+/* Compare Header */
+.compare-header {
+    position: absolute;
+    top: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #1a1f35;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    padding: 12px 24px;
+    border-radius: 4px;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 16px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    z-index: 100;
+}
+
+.compare-home-btn {
+    background: #ffffff;
+    color: #1a1f35;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 2px;
+    font-family: inherit;
+    font-weight: 700;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: background 0.2s;
+}
+
+.compare-home-btn:hover {
+    background: #e2e8f0;
+}
+
+/* Overlay Stats */
+.compare-stats-overlay {
+    position: absolute;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.compare-stat-row {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.compare-badge {
+    background-color: #1a1f35;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    padding: 8px 16px;
+    border-radius: 4px;
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    text-transform: uppercase;
+}
+
+.compare-badge span {
+    color: #94a3b8;
+    font-weight: 600;
+    font-size: 10px;
+}

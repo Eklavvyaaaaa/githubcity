@@ -32,6 +32,12 @@ const useStore = create((set, get) => ({
   carSpeed: 0,
   setCarSpeed: (carSpeed) => set({ carSpeed }),
 
+  // Current location in the city
+  currentDistrict: '',
+  setCurrentDistrict: (d) => set({ currentDistrict: d }),
+  nearbyBuilding: null,
+  setNearbyBuilding: (b) => set({ nearbyBuilding: b }),
+
   // Atmosphere
   weather: 'clear', // 'clear' | 'cloudy' | 'rainy' | 'foggy'
   setWeather: (weather) => set({ weather }),

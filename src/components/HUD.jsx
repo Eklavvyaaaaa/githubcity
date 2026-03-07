@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import useStore from '../store/store'
 import './HUD.css'
 
@@ -15,29 +15,40 @@ function HUD() {
     const gamePhase = useStore((s) => s.gamePhase)
     const carTier = useStore((s) => s.carTier)
     const carSpeed = useStore((s) => s.carSpeed)
-    const cityName = useStore((s) => s.cityName)
+    const currentDistrict = useStore((s) => s.currentDistrict)
+    const nearbyBuilding = useStore((s) => s.nearbyBuilding)
     const username = useStore((s) => s.username)
     const repos = useStore((s) => s.repos)
     const contributions = useStore((s) => s.contributions)
-    const userData = useStore((s) => s.userData)
+
     const setGamePhase = useStore((s) => s.setGamePhase)
     const reset = useStore((s) => s.reset)
-    const [showStats, setShowStats] = useState(false)
+
     const [shareStatus, setShareStatus] = useState('')
 
     const totalStars = repos.reduce((sum, r) => sum + (r.stargazers_count || 0), 0)
-    const totalForks = repos.reduce((sum, r) => sum + (r.forks_count || 0), 0)
-    const languages = [...new Set(repos.map(r => r.language).filter(Boolean))]
+
+    const fallbackCopy = async (dataUrl, text) => {
+        try {
+            await navigator.clipboard.writeText(text)
+            setShareStatus('COPIED!')
+        } catch {
+            setShareStatus('SAVED!')
+        }
+
+        const a = document.createElement('a')
+        a.href = dataUrl
+        a.download = `${username}-github-city.png`
+        a.click()
+    }
 
     const handleShare = useCallback(async () => {
         const canvas = document.querySelector('#city-canvas-container canvas')
         if (!canvas) return
 
-        // Capture screenshot
         const dataUrl = canvas.toDataURL('image/png')
         const shareText = `🏙️ ${username}'s GitHub City\n\n📦 ${repos.length} repos | ⭐ ${totalStars} stars | 🔥 ${contributions} contributions\n🚗 Driving a ${CAR_TIER_NAMES[carTier]}\n\nBuild yours at: ${window.location.origin}`
 
-        // Try native share first
         if (navigator.share && navigator.canShare) {
             try {
                 const blob = await (await fetch(dataUrl)).blob()
@@ -47,7 +58,7 @@ function HUD() {
                     text: `Check out my GitHub profile as a 3D city! 🏙️ ${repos.length} repos, ${contributions} contributions, driving a ${CAR_TIER_NAMES[carTier]}!`,
                     files: [file],
                 })
-                setShareStatus('Shared!')
+                setShareStatus('SHARED!')
             } catch (e) {
                 if (e.name !== 'AbortError') fallbackCopy(dataUrl, shareText)
             }
@@ -58,22 +69,6 @@ function HUD() {
         setTimeout(() => setShareStatus(''), 2000)
     }, [username, repos, contributions, carTier, totalStars])
 
-    const fallbackCopy = async (dataUrl, text) => {
-        // Copy share text to clipboard
-        try {
-            await navigator.clipboard.writeText(text)
-            setShareStatus('Copied!')
-        } catch {
-            setShareStatus('Screenshot ready!')
-        }
-
-        // Also trigger download of screenshot
-        const a = document.createElement('a')
-        a.href = dataUrl
-        a.download = `${username}-github-city.png`
-        a.click()
-    }
-
     const handleScreenshot = useCallback(() => {
         const canvas = document.querySelector('#city-canvas-container canvas')
         if (!canvas) return
@@ -81,7 +76,7 @@ function HUD() {
         a.href = canvas.toDataURL('image/png')
         a.download = `${username}-github-city.png`
         a.click()
-        setShareStatus('📸 Saved!')
+        setShareStatus('SAVED!')
         setTimeout(() => setShareStatus(''), 2000)
     }, [username])
 
@@ -89,84 +84,54 @@ function HUD() {
 
     return (
         <div className="hud">
-            {/* Top bar */}
-            <div className="hud-top glass">
-                <div className="hud-left-info">
-                    <div className="hud-city-name">{cityName}</div>
+
+            {/* Controls Hint Overlay (Fades out automatically) */}
+            <div className="hud-controls-hint">
+                <span className="key">W</span><span className="key">A</span><span className="key">S</span><span className="key">D</span>
+                <span className="controls-label">TO DRIVE</span>
+            </div>
+
+            {/* 2D Building Tooltip */}
+            <div className={`building-tooltip-overlay ${nearbyBuilding ? '' : 'hidden'}`}>
+                <div className="building-name">{nearbyBuilding?.name || 'Unknown Repo'}</div>
+                <div className="building-stats">
+                    <span>⭐ {nearbyBuilding?.stars || 0}</span>
+                    <span>{nearbyBuilding?.language || 'Markdown'}</span>
+                </div>
+            </div>
+
+            {/* Single Bottom Bar PolyTrack Style */}
+            <div className="hud-bottom-bar">
+
+                <div className="hud-section-left">
+                    <span className="hud-progress-icon">🏁</span>
+                    <div className="hud-district-info">
+                        <div className="hud-district-name">{currentDistrict || 'Loading Area...'}</div>
+                        <div className="hud-repo-count">{repos.length} BUILDINGS PLACED</div>
+                    </div>
+                </div>
+
+                <div className="hud-section-center">
                     <div className="hud-username">@{username}</div>
+                    <div className="hud-car-tier">DRIVING: {CAR_TIER_NAMES[carTier] || 'CAR'}</div>
                 </div>
-                <div className="hud-actions">
-                    <button className="hud-action-btn" onClick={handleScreenshot} title="Screenshot">
-                        📸
-                    </button>
-                    <button className="hud-action-btn" onClick={handleShare} title="Share">
-                        {shareStatus || '🔗'}
-                    </button>
-                    <button className="hud-action-btn" onClick={() => setShowStats(!showStats)} title="City Stats">
-                        📊
-                    </button>
-                    <button className="hud-action-btn hud-home-btn" onClick={reset} title="Back to Home">
-                        🏠
-                    </button>
-                </div>
-            </div>
 
-            {/* City Stats Panel */}
-            {showStats && (
-                <div className="city-stats glass-strong animate-fade-in">
-                    <h3 className="stats-title">📊 City Statistics</h3>
-                    <div className="stats-grid">
-                        <div className="stat-item">
-                            <span className="stat-value">{repos.length}</span>
-                            <span className="stat-label">Buildings</span>
-                        </div>
-                        <div className="stat-item">
-                            <span className="stat-value">{totalStars.toLocaleString()}</span>
-                            <span className="stat-label">Stars</span>
-                        </div>
-                        <div className="stat-item">
-                            <span className="stat-value">{totalForks.toLocaleString()}</span>
-                            <span className="stat-label">Forks</span>
-                        </div>
-                        <div className="stat-item">
-                            <span className="stat-value">{contributions.toLocaleString()}</span>
-                            <span className="stat-label">Contributions</span>
-                        </div>
-                        <div className="stat-item">
-                            <span className="stat-value">{languages.length}</span>
-                            <span className="stat-label">Districts</span>
-                        </div>
-                        <div className="stat-item">
-                            <span className="stat-value">{userData?.followers?.toLocaleString() || 0}</span>
-                            <span className="stat-label">Followers</span>
-                        </div>
+                <div className="hud-section-right">
+                    <div className="hud-speed">
+                        <span className="speed-value">{Math.round(carSpeed)}</span>
+                        <span className="speed-unit">KM/H</span>
                     </div>
-                    <div className="stats-languages">
-                        {languages.slice(0, 8).map(lang => (
-                            <span key={lang} className="lang-badge">{lang}</span>
-                        ))}
+
+                    <div className="hud-actions">
+                        <button className="hud-btn" onClick={() => setGamePhase('garage')}>GARAGE</button>
+                        <button className="hud-btn" onClick={handleScreenshot} title="Screenshot">📸</button>
+                        <button className="hud-btn hud-btn-primary" onClick={handleShare}>
+                            {shareStatus || 'SHARE'}
+                        </button>
+                        <button className="hud-btn" onClick={reset} title="Exit">EXIT</button>
                     </div>
                 </div>
-            )}
 
-            {/* Speed & car info */}
-            <div className="hud-bottom-left glass">
-                <div className="hud-speed">
-                    <span className="speed-value">{Math.round(carSpeed)}</span>
-                    <span className="speed-unit">km/h</span>
-                </div>
-                <div className="hud-car-tier">{CAR_TIER_NAMES[carTier] || 'Rusty Jalopy'}</div>
-            </div>
-
-            {/* Controls hint */}
-            <div className="hud-bottom-right glass">
-                <div className="hud-controls">
-                    <span className="key">W</span><span className="key">A</span><span className="key">S</span><span className="key">D</span>
-                    <span className="controls-label">to drive</span>
-                </div>
-                <button className="hud-garage-btn" onClick={() => setGamePhase('garage')}>
-                    🏎️ Garage
-                </button>
             </div>
         </div>
     )

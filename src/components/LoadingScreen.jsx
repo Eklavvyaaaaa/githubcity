@@ -95,17 +95,23 @@ function LoadingScreen() {
         return () => { cancelled = true }
     }, [username])
 
+    const progress = Math.min((msgIndex / (MESSAGES.length - 1)) * 100, 100)
+
     return (
-        <div className="loading-screen">
+        <div className="loading-screen animate-fade-in">
             <div className="loading-content">
-                <div className="loading-spinner" />
-                <h2 className="loading-title">Building {username}'s city</h2>
-                <p className="loading-message">{MESSAGES[msgIndex]}</p>
-                <div className="loading-bar-track">
-                    <div
-                        className="loading-bar-fill"
-                        style={{ width: `${((msgIndex + 1) / MESSAGES.length) * 100}%` }}
-                    />
+
+                <h1 className="loading-title">
+                    {isCompareMode && compareUsername ? `BUILDING CITY: ${username} VS ${compareUsername}` : `BUILDING CITY: ${username}`}
+                </h1>
+
+                <div className="loading-bar-container">
+                    <div className="loading-bar-fill" style={{ width: `${progress}%` }} />
+                </div>
+
+                <div className="loading-message animate-fade-in" key={msgIndex}>
+                    {MESSAGES[msgIndex]}...
+
                 </div>
             </div>
         </div>

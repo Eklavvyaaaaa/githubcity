@@ -8,23 +8,19 @@ import useStore from '../store/store'
 // Shared materials (reuse across all meshes)
 // ===========================
 const SHARED_MATERIALS = {
-    road: new THREE.MeshStandardMaterial({ color: '#171728', roughness: 0.85 }),
-    ground: new THREE.MeshStandardMaterial({ color: '#080812', roughness: 1 }),
-    sidewalk: new THREE.MeshStandardMaterial({ color: '#222240', roughness: 0.9 }),
-    dashLine: new THREE.MeshBasicMaterial({ color: '#3a3a5a' }),
-    lampPole: new THREE.MeshStandardMaterial({ color: '#3a3a55', metalness: 0.7, roughness: 0.2 }),
+    road: new THREE.MeshLambertMaterial({ color: '#555555', flatShading: true }),
+    ground: new THREE.MeshLambertMaterial({ color: '#2b3a32', flatShading: true }), // Grey-green ground
+    sidewalk: new THREE.MeshLambertMaterial({ color: '#444444', flatShading: true }),
+    dashLine: new THREE.MeshBasicMaterial({ color: '#eeeeee' }), // White lines
+    redLine: new THREE.MeshBasicMaterial({ color: '#dd4444' }), // Red lines
+    lampPole: new THREE.MeshLambertMaterial({ color: '#333333', flatShading: true }),
     lampBulb: new THREE.MeshBasicMaterial({ color: '#FFE4A0' }),
-    treeTrunk: new THREE.MeshStandardMaterial({ color: '#4A3528', roughness: 0.9 }),
-    treeTop1: new THREE.MeshStandardMaterial({ color: '#1B5E20', roughness: 0.85 }),
-    treeTop2: new THREE.MeshStandardMaterial({ color: '#2E7D32', roughness: 0.85 }),
-    parkGround: new THREE.MeshStandardMaterial({ color: '#0f2a14', roughness: 0.95 }),
-    wheel: new THREE.MeshStandardMaterial({ color: '#1a1a1a', roughness: 0.95 }),
-    hubcap: new THREE.MeshStandardMaterial({ color: '#888', metalness: 0.8, roughness: 0.2 }),
-    headlight: new THREE.MeshBasicMaterial({ color: '#FFFDE0' }),
-    taillight: new THREE.MeshBasicMaterial({ color: '#FF2222' }),
-    rooftopUnit: new THREE.MeshStandardMaterial({ color: '#444455', roughness: 0.9, metalness: 0.3 }),
-    billboard: new THREE.MeshStandardMaterial({ color: '#12122a', roughness: 0.8 }),
-    billboardGlow: new THREE.MeshBasicMaterial({ color: '#6c5ce7', transparent: true, opacity: 0.2 }),
+    treeTrunk: new THREE.MeshLambertMaterial({ color: '#4A3528', flatShading: true }),
+    treeTop1: new THREE.MeshLambertMaterial({ color: '#2d4c32', flatShading: true }),
+    treeTop2: new THREE.MeshLambertMaterial({ color: '#3a5f41', flatShading: true }),
+    parkGround: new THREE.MeshLambertMaterial({ color: '#2b3a32', flatShading: true }),
+    wheel: new THREE.MeshLambertMaterial({ color: '#1a1a1a', flatShading: true }),
+    rooftopUnit: new THREE.MeshLambertMaterial({ color: '#444444', flatShading: true }),
 }
 
 // Shared geometries
@@ -79,8 +75,8 @@ function InstancedBuildings({ buildings }) {
     if (count === 0) return null
 
     return (
-        <instancedMesh ref={meshRef} args={[SHARED_GEOS.box, null, count]} castShadow receiveShadow frustumCulled={false}>
-            <meshStandardMaterial vertexColors roughness={0.6} metalness={0.15} />
+        <instancedMesh ref={meshRef} args={[SHARED_GEOS.box, null, count]} receiveShadow frustumCulled={false}>
+            <meshLambertMaterial vertexColors flatShading={true} />
         </instancedMesh>
     )
 }
@@ -454,22 +450,28 @@ function Car({ carTier, buildings }) {
     })
 
     const carMaterial = useMemo(() => (
-        new THREE.MeshStandardMaterial({ color: config.color, metalness: 0.5, roughness: 0.25 })
+        new THREE.MeshLambertMaterial({ color: config.color, flatShading: true })
     ), [config.color])
 
     return (
         <group ref={groupRef}>
+            {/* Fake shadow decal */}
+            <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                <circleGeometry args={[Math.max(bodyW, bodyL) * 0.7, 16]} />
+                <meshBasicMaterial color="#000000" transparent opacity={0.4} />
+            </mesh>
+
             {/* Body */}
-            <mesh position={[0, bodyH / 2 + wheelR * 1.2, 0]} castShadow material={carMaterial}>
+            <mesh position={[0, bodyH / 2 + wheelR * 1.2, 0]} material={carMaterial}>
                 <boxGeometry args={[bodyW, bodyH, bodyL]} />
             </mesh>
             {/* Roof */}
-            <mesh position={[0, bodyH + wheelR * 1.2 + roofH / 2, bodyL * -0.05]} castShadow>
+            <mesh position={[0, bodyH + wheelR * 1.2 + roofH / 2, bodyL * -0.05]}>
                 <boxGeometry args={[bodyW - 0.3, roofH, bodyL * roofL]} />
-                <meshStandardMaterial color={config.color} metalness={0.6} roughness={0.15} transparent opacity={0.85} />
+                <meshLambertMaterial color={config.color} transparent opacity={0.85} flatShading={true} />
             </mesh>
             {/* Hood */}
-            <mesh position={[0, bodyH * 0.7 + wheelR * 1.2, bodyL * 0.35]} castShadow material={carMaterial}>
+            <mesh position={[0, bodyH * 0.7 + wheelR * 1.2, bodyL * 0.35]} material={carMaterial}>
                 <boxGeometry args={[bodyW - 0.1, bodyH * 0.3, bodyL * 0.25]} />
             </mesh>
             {/* Wheels (shared geometry & material) */}
@@ -497,8 +499,8 @@ function Car({ carTier, buildings }) {
             {carTier >= 3 && (
                 <group position={[0, bodyH + wheelR * 1.2 + 0.1, -bodyL * 0.45]}>
                     <mesh material={carMaterial}><boxGeometry args={[bodyW + 0.2, 0.08, 0.6]} /></mesh>
-                    <mesh position={[-0.6, -0.3, 0]}><boxGeometry args={[0.08, 0.6, 0.08]} /><meshStandardMaterial color="#333" metalness={0.5} /></mesh>
-                    <mesh position={[0.6, -0.3, 0]}><boxGeometry args={[0.08, 0.6, 0.08]} /><meshStandardMaterial color="#333" metalness={0.5} /></mesh>
+                    <mesh position={[-0.6, -0.3, 0]}><boxGeometry args={[0.08, 0.6, 0.08]} /><meshLambertMaterial color="#333" flatShading={true} /></mesh>
+                    <mesh position={[0.6, -0.3, 0]}><boxGeometry args={[0.08, 0.6, 0.08]} /><meshLambertMaterial color="#333" flatShading={true} /></mesh>
                 </group>
             )}
         </group>
@@ -580,45 +582,53 @@ function CameraController({ bounds }) {
 }
 
 // ===========================
-// Day/Night (single light, optimized)
-// ===========================
-function DayNightCycle() {
-    const lightRef = useRef()
-    const cachedAngle = useRef(0)
-    const lastUpdate = useRef(0)
+function Horizon({ bounds }) {
+    const isNight = useStore((s) => s.weather === 'clear' && false) // We'll handle this purely by color now, or just keep it simple
 
-    useFrame(() => {
-        // Update sun position only every 60 frames (once per second at 60fps)
-        lastUpdate.current++
-        if (lastUpdate.current < 60) return
-        lastUpdate.current = 0
+    const span = Math.max(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ)
 
-        const now = new Date()
-        const hours = now.getHours() + now.getMinutes() / 60
-        const angle = ((hours - 6) / 24) * Math.PI * 2
-        cachedAngle.current = angle
-
-        if (lightRef.current) {
-            const sunY = Math.sin(angle) * 80
-            const sunX = Math.cos(angle) * 100
-            lightRef.current.position.set(sunX, Math.max(sunY, 5), 50)
-            lightRef.current.intensity = Math.max(0.1, Math.sin(angle)) * 1.5
+    // Background mountains
+    const mountains = useMemo(() => {
+        const geo = new THREE.CylinderGeometry(span * 1.5, span * 2, 80, 32, 1, true)
+        const pos = geo.attributes.position
+        for (let i = 0; i < pos.count; i++) {
+            if (pos.getY(i) > 0) {
+                // Perturb top vertices to look like low-poly mountains
+                pos.setY(i, 40 + Math.random() * 40)
+            }
         }
-    })
+        geo.computeVertexNormals()
+        return geo
+    }, [span])
 
     return (
-        <directionalLight
-            ref={lightRef}
-            position={[50, 80, 50]}
-            intensity={1.2}
-            color="#ffeedd"
-            castShadow
-            shadow-mapSize={[1024, 1024]}
-            shadow-camera-left={-80}
-            shadow-camera-right={80}
-            shadow-camera-top={80}
-            shadow-camera-bottom={-80}
-        />
+        <group>
+            {/* Flat grey-green ground plane */}
+            <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[0, -0.1, 0]}>
+                <planeGeometry args={[span * 4, span * 4]} />
+                <primitive object={SHARED_MATERIALS.ground} />
+            </mesh>
+
+            {/* Surrounding Mountain Ring */}
+            <mesh geometry={mountains} position={[0, 0, 0]} receiveShadow>
+                <meshLambertMaterial color="#3a4f41" flatShading={true} side={THREE.BackSide} />
+            </mesh>
+
+            <directionalLight
+                position={[50, 100, 50]}
+                intensity={1.2}
+                color="#ffffff"
+                castShadow
+                shadow-mapSize={[1024, 1024]}
+                shadow-camera-near={0.5}
+                shadow-camera-far={300}
+                shadow-camera-left={-100}
+                shadow-camera-right={100}
+                shadow-camera-top={100}
+                shadow-camera-bottom={-100}
+            />
+            <ambientLight intensity={0.6} color="#aaccee" />
+        </group>
     )
 }
 
@@ -727,54 +737,24 @@ function Billboards({ userData, repos, contributions, bounds }) {
 }
 
 // ===========================
-// District Labels (HTML-based)
+// Location Tracker (Headless - updates Zustand for HUD)
 // ===========================
-function DistrictLabels({ districts }) {
-    // Only show top 6 districts to limit DOM elements
-    const topDistricts = useMemo(() => districts.slice(0, 6), [districts])
-
-    return (
-        <group>
-            {topDistricts.map((d, i) => {
-                const cx = (d.bounds.minX + d.bounds.maxX) / 2
-                const cz = (d.bounds.minZ + d.bounds.maxZ) / 2
-                return (
-                    <group key={i} position={[cx, 2, cz - 8]}>
-                        <Html center transform>
-                            <div style={{
-                                color: d.style.accent, fontSize: '20px',
-                                fontFamily: 'Orbitron, sans-serif', fontWeight: 700,
-                                letterSpacing: '2px', whiteSpace: 'nowrap',
-                                textShadow: `0 0 15px ${d.style.accent}`,
-                                pointerEvents: 'none', opacity: 0.8,
-                            }}>
-                                {d.language}
-                            </div>
-                        </Html>
-                    </group>
-                )
-            })}
-        </group>
-    )
-}
-
-// ===========================
-// Building Tooltip (on car proximity)
-// ===========================
-function BuildingTooltip({ buildings }) {
-    const [nearbyBuilding, setNearbyBuilding] = useState(null)
+function LocationTracker({ buildings, districts }) {
+    const setCurrentDistrict = useStore((s) => s.setCurrentDistrict)
+    const setNearbyBuilding = useStore((s) => s.setNearbyBuilding)
     const lastCheck = useRef(0)
 
     useFrame(() => {
-        // Check proximity every 30 frames
+        // Check proximity every 15 frames (4 times a second at 60fps)
         lastCheck.current++
-        if (lastCheck.current < 30) return
+        if (lastCheck.current < 15) return
         lastCheck.current = 0
 
         const carPos = carStateRef.current.position
-        let closest = null
-        let closestDist = 15 // Max tooltip distance
 
+        // 1. Nearby building
+        let closest = null
+        let closestDist = 12 // Max tooltip distance
         for (const b of buildings) {
             const dist = Math.sqrt((carPos.x - b.x) ** 2 + (carPos.z - b.z) ** 2)
             if (dist < closestDist) {
@@ -783,38 +763,55 @@ function BuildingTooltip({ buildings }) {
             }
         }
         setNearbyBuilding(closest)
+
+        // 2. Current district
+        let currentD = 'Unknown Area'
+        for (const d of districts) {
+            if (carPos.x >= d.bounds.minX && carPos.x <= d.bounds.maxX &&
+                carPos.z >= d.bounds.minZ && carPos.z <= d.bounds.maxZ) {
+                currentD = d.language
+                break
+            }
+        }
+        setCurrentDistrict(currentD)
     })
 
-    return (
-        <Html
-            position={nearbyBuilding ? [nearbyBuilding.x, nearbyBuilding.height + 2, nearbyBuilding.z] : [0, 0, 0]}
-            center
-            style={{ display: nearbyBuilding ? 'block' : 'none' }}
-        >
-            {nearbyBuilding && (
-                <div style={{
-                    background: 'rgba(10,10,30,0.92)',
-                    border: '1px solid rgba(108,92,231,0.4)',
-                    borderRadius: '10px', padding: '10px 16px',
-                    color: '#e8e8f0', fontSize: '13px',
-                    fontFamily: 'Inter, sans-serif',
-                    whiteSpace: 'nowrap', backdropFilter: 'blur(10px)',
-                    pointerEvents: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
-                }}>
-                    <div style={{ fontWeight: 700, marginBottom: '3px' }}>{nearbyBuilding.name}</div>
-                    <div style={{ fontSize: '11px', color: '#8888aa' }}>
-                        ⭐ {nearbyBuilding.stars} &nbsp; 🍴 {nearbyBuilding.forks} &nbsp; {nearbyBuilding.language}
-                    </div>
-                </div>
-            )}
-        </Html>
-    )
+    return null
 }
 
 // ===========================
 // Main City Scene
 // ===========================
-function CityScene() {
+
+export function CityEnvironment({ cityData, weather, userData, repos, contributions }) {
+    if (!cityData) return null
+    const { buildings, parks, props, districts, bounds } = cityData
+
+    return (
+        <group>
+            <Horizon bounds={bounds} />
+
+            {/* Environment */}
+            {weather === 'rainy' && <Rain />}
+
+            {/* Static City Elements */}
+            <InstancedBuildings buildings={buildings} />
+            <Landmarks buildings={buildings} />
+            <RoofDetails buildings={buildings} />
+            <Roads bounds={bounds} />
+            <StreetProps props={props} />
+            <Parks parks={parks} />
+
+            {/* UI Overlays in World */}
+            <Billboards userData={userData} repos={repos} contributions={contributions} bounds={bounds} />
+        </group>
+    )
+}
+
+// ===========================
+// Main City Scene (Single Player)
+// ===========================
+export default function CityScene() {
     const cityData = useStore((s) => s.cityData)
     const carTier = useStore((s) => s.carTier)
     const weather = useStore((s) => s.weather)
@@ -853,16 +850,9 @@ function CityScene() {
                 <DayNightCycle />
                 <hemisphereLight intensity={0.2} color="#6666aa" groundColor="#000011" />
 
-                {/* City (instanced) */}
-                <InstancedBuildings buildings={buildings} />
-                <Landmarks buildings={buildings} />
-                <RoofDetails buildings={buildings} />
-                <Roads bounds={bounds} />
-                <StreetProps props={props} />
-                <Parks parks={parks} />
-                <DistrictLabels districts={districts} />
-                <Billboards userData={userData} repos={repos} contributions={contributions} bounds={bounds} />
-                <BuildingTooltip buildings={buildings} />
+
+                {/* Location Tracker for new HUD */}
+                <LocationTracker buildings={cityData.buildings} districts={cityData.districts} />
 
                 {/* Weather */}
                 {weather === 'rainy' && <Rain />}
@@ -874,5 +864,3 @@ function CityScene() {
         </div>
     )
 }
-
-export default CityScene
