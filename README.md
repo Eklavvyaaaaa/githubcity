@@ -1,20 +1,47 @@
 # 🏙️ GitHub City
 
-**Your GitHub profile as a 3D city you can drive through.**
+**Explore your GitHub profile as a living, 3D low-poly city.**
 
-GitHub City transforms any GitHub profile into a fully explorable 3D city. Repositories become buildings, contributions determine your car, and your coding activity shapes the world.
+GitHub City transforms any GitHub profile into a procedurally generated 3D world. Every repository is a building, every contribution fuels your car, and every language forms a unique district. 
 
-## ✨ Features
+---
 
-- **Repos → Buildings** — Each repository becomes a building. More stars and forks = taller buildings
-- **Language Districts** — Buildings grouped by programming language, each with unique colors
-- **6 Car Tiers** — From Rusty Jalopy (0 contributions) to Hypercar (2000+)
-- **WASD Driving** — Drive through your city with smooth third-person camera
-- **Day/Night Cycle** — Real-time sky changes based on actual time
-- **Weather System** — Active devs get clear skies, inactive devs get fog and rain
-- **Achievement Billboards** — Discover your GitHub milestones scattered throughout the city
-- **Landmark Buildings** — Top-starred repos become towering monuments
-- **Garage Screen** — See your car tier and what's needed to upgrade
+## ✨ Features (Phases 1-8)
+
+### 🏗️ World Generation
+- **Repos → Buildings**: Each repository is a unique building. Height and size are driven by stars, forks, and codebase size.
+- **Language Biomes**: The city is divided into districts based on programming languages (JS, Python, Rust, etc.). Each biome has a unique color palette for the ground, sky, and atmosphere.
+- **Ambient Life**: Drifting low-poly clouds and glowing traffic light trails make the city feel like a bustling metropolis.
+
+### 🚗 Driving & Kinetics
+- **6 Car Tiers**: Unlock faster and more advanced cars based on your total contributions — from the "Rusty Jalopy" to the "Hypercar".
+- **Arcade Physics**: Smooth WASD driving with a dedicated physics-based jump mechanic (**Spacebar**).
+- **Procedural Engine Audio**: A custom engine sound synthesizer that reacts to your speed, plus tire screeching and landing thuds.
+
+### 🗺️ Navigation & Interaction
+- **HUD Minimap**: A real-time 2D radar in the HUD showing roads, buildings, collected coins, and your position.
+- **Interactive Repo Panels**: Drive up to any building and press **[E]** to see a detailed slide-out panel with the repo's full stats, description, and creation dates.
+- **Proximity Tooltips**: Seamless 2D overlays that pop up to identify buildings as you drive past them.
+
+### 🎮 Gameplay & Social
+- **Commit Coins Mini-Game**: Collect glowing 3D GitHub coins floating above your most active repositories to increase your score.
+- **Compare Mode**: Enter two usernames to generate two cities side-by-side in a cinematic split-screen view.
+- **Capture & Share**: Built-in screenshot tool and native Web Share integration to show off your city.
+- **Cinematic Intro**: A dynamic flythrough camera sequence that tours your city upon loading.
+
+---
+
+## 🕹️ Controls
+
+| Key | Action |
+|-----|--------|
+| **W / A / S / D** | Drive & Steer |
+| **Spacebar** | Jump / Hop |
+| **E** | View Repo Details (When Near) |
+| **ESC** | Close Panels / Exit |
+| **Mouse** | Orbit Camera (In Garage/Compare) |
+
+---
 
 ## 🚀 Quick Start
 
@@ -30,36 +57,20 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) and enter any GitHub username!
+Open [http://localhost:5173](http://localhost:5173) and enter your GitHub username!
 
-## 🔑 GitHub Token (Optional)
+---
 
-Without a token, you get 60 API requests/hour. For heavy use:
+## 🏗️ Technical Highlights
 
-1. Go to [GitHub Settings → Tokens](https://github.com/settings/tokens)
-2. Create a token (no scopes needed for public data)
-3. Paste it in the "Add GitHub token" field on the landing page
+- **React Three Fiber & Three.js**: Core 3D engine.
+- **Instanced Mesh Rendering**: Highly optimized — thousands of windows, trees, and coins rendered in just a few draw calls.
+- **Web Audio API**: 100% procedural sound design. No heavy MP3/WAV files.
+- **Zustand**: Fast, reactive global state management.
+- **Spatial Hash Collisions**: O(1) collision detection for smooth driving even in dense cities.
 
-## 🏗️ Tech Stack
-
-- **Three.js** + **React Three Fiber** — 3D rendering
-- **Vite** — Build tool
-- **Zustand** — State management
-- **Procedural geometry** — All assets generated in code (no external 3D files)
-
-## 📦 Project Structure
-
-```
-src/
-├── car/           # Car models & driving controller
-├── city/          # City generation engine & districts
-├── components/    # UI (Landing, HUD, Garage, Loading)
-├── scene/         # 3D scene (CityScene, buildings, roads)
-├── services/      # GitHub API
-├── store/         # Zustand state
-└── styles/        # Global CSS
-```
+---
 
 ## 📄 License
 
-MIT
+MIT — Feel free to fork and build your own districts!
