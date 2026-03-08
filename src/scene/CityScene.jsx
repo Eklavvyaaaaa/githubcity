@@ -5,6 +5,7 @@ import * as THREE from 'three'
 import useStore from '../store/store'
 import { startEngine, updateEngineSound, stopEngine, playTireScreech, playJumpSound, playLandThud, playCoinCollect } from '../services/audio'
 import { CELL_SIZE, ROAD_WIDTH, BLOCK_SIZE } from '../city/CityGenerator'
+import Clouds from './Clouds'
 
 // ===========================
 // Shared materials (reuse across all meshes)
@@ -207,6 +208,81 @@ function RoofDetails({ buildings }) {
 
     return (
         <instancedMesh ref={meshRef} args={[SHARED_GEOS.box, SHARED_MATERIALS.rooftopUnit, tallBuildings.length]} castShadow frustumCulled={false} />
+    )
+}
+
+// ===========================
+// Traffic (Light trails on roads)
+// ===========================
+function Traffic({ bounds }) {
+    const meshRef = useRef()
+    const { hRoads, vRoads } = useMemo(() => {
+        const h = [], v = []
+        const step = CELL_SIZE
+        for (let z = Math.floor(bounds.minZ / step) * step; z <= bounds.maxZ; z += step) h.push(z)
+        for (let x = Math.floor(bounds.minX / step) * step; x <= bounds.maxX; x += step) v.push(x)
+        return { hRoads: h, vRoads: v }
+    }, [bounds])
+
+    const count = (hRoads.length + vRoads.length) * 2
+    const dummy = useMemo(() => new THREE.Object3D(), [])
+
+    useFrame(({ clock }) => {
+        if (!meshRef.current) return
+        const t = clock.elapsedTime * 0.5
+        const roadLen = bounds.maxX - bounds.minX + 100
+        const roadDepth = bounds.maxZ - bounds.minZ + 100
+
+        let idx = 0
+        // Horizontal Traffic
+        hRoads.forEach((z, i) => {
+            const offset = (i * 0.3) % 1
+            const x = bounds.minX - 50 + ((t + offset) % 1) * roadLen
+
+            // Forward lane
+            dummy.position.set(x, 0.1, z + 2)
+            dummy.rotation.set(0, 0, 0)
+            dummy.scale.set(6, 0.1, 0.2)
+            dummy.updateMatrix()
+            meshRef.current.setMatrixAt(idx++, dummy.matrix)
+
+            // Backward lane
+            const x2 = bounds.maxX + 50 - ((t + offset + 0.5) % 1) * roadLen
+            dummy.position.set(x2, 0.1, z - 2)
+            dummy.rotation.set(0, 0, 0)
+            dummy.scale.set(6, 0.1, 0.2)
+            dummy.updateMatrix()
+            meshRef.current.setMatrixAt(idx++, dummy.matrix)
+        })
+
+        // Vertical Traffic
+        vRoads.forEach((x, i) => {
+            const offset = (i * 0.3) % 1
+            const z = bounds.minZ - 50 + ((t + offset) % 1) * roadDepth
+
+            // Forward lane
+            dummy.position.set(x + 2, 0.1, z)
+            dummy.rotation.set(0, 0, 0)
+            dummy.scale.set(0.2, 0.1, 6)
+            dummy.updateMatrix()
+            meshRef.current.setMatrixAt(idx++, dummy.matrix)
+
+            // Backward lane
+            const z2 = bounds.maxZ + 50 - ((t + offset + 0.5) % 1) * roadDepth
+            dummy.position.set(x - 2, 0.1, z2)
+            dummy.rotation.set(0, 0, 0)
+            dummy.scale.set(0.2, 0.1, 6)
+            dummy.updateMatrix()
+            meshRef.current.setMatrixAt(idx++, dummy.matrix)
+        })
+
+        meshRef.current.instanceMatrix.needsUpdate = true
+    })
+
+    return (
+        <instancedMesh ref={meshRef} args={[SHARED_GEOS.box, SHARED_MATERIALS.window, count]}>
+            <meshBasicMaterial color="#ffffff" transparent opacity={0.6} />
+        </instancedMesh>
     )
 }
 
@@ -580,6 +656,13 @@ function Car({ carTier, buildings, spawnPos }) {
         if (groupRef.current) {
             groupRef.current.position.set(s.position.x, s.position.y, s.position.z)
             groupRef.current.rotation.y = s.rotation
+
+            // Phase 8: Expose car state for Minimap (global to avoid store overhead)
+            window.__carState = {
+                x: s.position.x,
+                z: s.position.z,
+                rotation: s.rotation
+            }
         }
 
         // Share car state with camera via ref (no scene traversal!)
@@ -1062,8 +1145,10 @@ export function CityEnvironment({ cityData, weather, userData, repos, contributi
             <Landmarks buildings={buildings} />
             <RoofDetails buildings={buildings} />
             <Roads bounds={bounds} />
+            <Traffic bounds={bounds} />
             <StreetProps props={props} />
             <Parks parks={parks} />
+            <Clouds bounds={bounds} />
 
             {/* UI Overlays in World */}
             <Billboards userData={userData} repos={repos} contributions={contributions} bounds={bounds} />

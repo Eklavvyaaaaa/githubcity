@@ -140,6 +140,8 @@ export function generateCity(user, repos) {
                     isPrivate: repo.private,
                     isPinned: i < 3 && stars > 0,
                     url: repo.html_url,
+                    lastPush: repo.pushed_at,
+                    createdAt: repo.created_at,
                     windowRows,
                     windowCols,
                     repoSize: size,

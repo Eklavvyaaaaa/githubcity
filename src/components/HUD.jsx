@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect } from 'react'
 import useStore from '../store/store'
 import { playUIClick } from '../services/audio'
+import Minimap from './Minimap'
+import RepoInfoPanel from './RepoInfoPanel'
 import './HUD.css'
 
 const CAR_TIER_NAMES = [
@@ -23,6 +25,9 @@ function HUD() {
     const contributions = useStore((s) => s.contributions)
     const coinsCollected = useStore((s) => s.coinsCollected)
     const totalCoins = useStore((s) => s.totalCoins)
+    const showRepoPanel = useStore((s) => s.showRepoPanel)
+    const setShowRepoPanel = useStore((s) => s.setShowRepoPanel)
+    const setActiveRepo = useStore((s) => s.setActiveRepo)
 
     const setGamePhase = useStore((s) => s.setGamePhase)
     const reset = useStore((s) => s.reset)
@@ -83,6 +88,19 @@ function HUD() {
         setTimeout(() => setShareStatus(''), 2000)
     }, [username])
 
+    // Handle 'E' to open repo panel
+    useEffect(() => {
+        const onKeyDown = (e) => {
+            if (e.key.toLowerCase() === 'e' && nearbyBuilding && !showRepoPanel) {
+                setActiveRepo(nearbyBuilding)
+                setShowRepoPanel(true)
+                playUIClick()
+            }
+        }
+        window.addEventListener('keydown', onKeyDown)
+        return () => window.removeEventListener('keydown', onKeyDown)
+    }, [nearbyBuilding, showRepoPanel, setActiveRepo, setShowRepoPanel])
+
     if (gamePhase !== 'playing') return null
 
     return (
@@ -96,6 +114,12 @@ function HUD() {
                 <span className="controls-label">TO JUMP</span>
             </div>
 
+            {/* Minimap */}
+            <Minimap />
+
+            {/* Detailed Repo Stats Panel (Shows on 'E') */}
+            <RepoInfoPanel />
+
             {/* 2D Building Tooltip */}
             <div className={`building-tooltip-overlay ${nearbyBuilding ? '' : 'hidden'}`}>
                 <div className="building-name">{nearbyBuilding?.name || 'Unknown Repo'}</div>
@@ -103,6 +127,7 @@ function HUD() {
                     <span>⭐ {nearbyBuilding?.stars || 0}</span>
                     <span>{nearbyBuilding?.language || 'Markdown'}</span>
                 </div>
+                <div className="building-action-hint">PRESS [E] FOR STATS</div>
             </div>
 
             {/* Single Bottom Bar PolyTrack Style */}

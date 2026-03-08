@@ -38,6 +38,12 @@ const useStore = create((set, get) => ({
   nearbyBuilding: null,
   setNearbyBuilding: (b) => set({ nearbyBuilding: b }),
 
+  // Phase 8: Interactive Repo Panel
+  activeRepo: null,
+  setActiveRepo: (repo) => set({ activeRepo: repo }),
+  showRepoPanel: false,
+  setShowRepoPanel: (show) => set({ showRepoPanel: show }),
+
   // Atmosphere
   weather: 'clear', // 'clear' | 'cloudy' | 'rainy' | 'foggy'
   setWeather: (weather) => set({ weather }),
@@ -96,6 +102,8 @@ const useStore = create((set, get) => ({
     coinsCollected: 0,
     totalCoins: 0,
     collectedCoinIds: new Set(),
+    activeRepo: null,
+    showRepoPanel: false,
   }),
 }))
 
