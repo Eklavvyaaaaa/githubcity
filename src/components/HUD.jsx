@@ -91,13 +91,19 @@ function HUD() {
         setTimeout(() => setShareStatus(''), 2000)
     }, [username])
 
-    // Handle 'E' to open repo panel
+    // Handle 'E' to toggle repo panel
     useEffect(() => {
         const onKeyDown = (e) => {
-            if (e.key.toLowerCase() === 'e' && nearbyBuilding && !showRepoPanel) {
-                setActiveRepo(nearbyBuilding)
-                setShowRepoPanel(true)
-                playUIClick()
+            if (e.key.toLowerCase() === 'e') {
+                if (showRepoPanel) {
+                    setShowRepoPanel(false)
+                    setActiveRepo(null)
+                    playUIClick()
+                } else if (nearbyBuilding) {
+                    setActiveRepo(nearbyBuilding)
+                    setShowRepoPanel(true)
+                    playUIClick()
+                }
             }
         }
         window.addEventListener('keydown', onKeyDown)

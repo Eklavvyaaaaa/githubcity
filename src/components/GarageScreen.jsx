@@ -32,6 +32,13 @@ function GarageScreen() {
     return (
         <div className="garage-overlay">
             <div className="garage-panel glass-strong">
+                <button
+                    className="garage-top-close"
+                    onClick={() => { playUIClick(); setGamePhase('playing') }}
+                    title="Close Garage"
+                >
+                    ✕
+                </button>
                 <h2 className="garage-title">YOUR GARAGE</h2>
                 <p className="garage-contribs">{contributions.toLocaleString()} CONTRIBUTIONS THIS YEAR</p>
 

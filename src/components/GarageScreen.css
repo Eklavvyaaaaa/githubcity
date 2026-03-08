@@ -21,6 +21,24 @@
     display: flex;
     flex-direction: column;
     gap: 20px;
+    position: relative;
+}
+
+.garage-top-close {
+    position: absolute;
+    top: 24px;
+    right: 24px;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 20px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.garage-top-close:hover {
+    color: var(--accent-red);
+    transform: scale(1.1);
 }
 
 .garage-title {
