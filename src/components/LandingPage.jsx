@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
-import * as THREE from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'
+import * as THREE from 'three'
 import useStore from '../store/store'
 import { playUIClick } from '../services/audio'
 
