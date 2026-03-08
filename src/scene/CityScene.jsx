@@ -1253,7 +1253,7 @@ function SpawnBillboard({ pos, userData, repos, contributions }) {
 
             {/* Text Layers */}
             <Text position={[0, 2.5, 0.45]} fontSize={0.7} color="#00f5a0" anchorY="top">
-                {userData.login ? `${userData.login.toUpperCase()}'S RUN` : 'GITHUB CITY'}
+                {userData.login ? `${userData.login.toUpperCase()}'S RUN` : 'GITSCAPE'}
             </Text>
             <Text position={[0, 1.3, 0.45]} fontSize={0.4} color="#e6edf3">
                 {repos?.length || 0} REPOSITORIES

@@ -1,8 +1,8 @@
-# 🏙️ GitHub City
+# 🏙️ Gitscape
 
 **Explore your GitHub profile as a living, 3D low-poly city.**
 
-GitHub City transforms any GitHub profile into a procedurally generated 3D world. Every repository is a building, every contribution fuels your car, and every language forms a unique district. 
+Gitscape transforms any GitHub profile into a procedurally generated 3D world. Every repository is a building, every contribution fuels your car, and every language forms a unique district. 
 
 ---
 
@@ -47,8 +47,8 @@ GitHub City transforms any GitHub profile into a procedurally generated 3D world
 
 ```bash
 # Clone
-git clone https://github.com/Eklavvyaaaaa/githubcity.git
-cd githubcity
+git clone https://github.com/Eklavvyaaaaa/gitscape.git
+cd gitscape
 
 # Install
 npm install

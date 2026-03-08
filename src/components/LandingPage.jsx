@@ -4,7 +4,7 @@ import useStore from '../store/store'
 import { playUIClick } from '../services/audio'
 
 /**
- * GITHUB CITY ANTIGRAVITY LANDING PAGE
+ * GITSCAPE ANTIGRAVITY LANDING PAGE
  * A stunning, professional-grade landing page with a live Three.js centerpiece.
  */
 
@@ -563,7 +563,7 @@ const AntigravityLanding = () => {
             <nav className={`navbar ${isScrolled ? 'scrolled' : ''}`}>
                 <div className="nav-logo">
                     <div className="logo-square">🏙️</div>
-                    GITHUB CITY
+                    GITSCAPE
                 </div>
                 <div className="nav-links">
                     <a href="#how-it-works" className="nav-link">How It Works</a>
@@ -608,7 +608,7 @@ const AntigravityLanding = () => {
                                 <div className="dot" style={{ background: '#ffbd2e' }}></div>
                                 <div className="dot" style={{ background: '#27c93f' }}></div>
                             </div>
-                            <div className="url-bar">githubcity.app/@{inputVal || 'username'}</div>
+                            <div className="url-bar">gitscape.app/@{inputVal || 'username'}</div>
                         </div>
                         <div className="browser-content">
                             <canvas ref={canvasRef} className="preview-canvas" />
@@ -718,7 +718,7 @@ const AntigravityLanding = () => {
                 <div className="footer-left">
                     <div className="nav-logo" style={{ marginBottom: '20px' }}>
                         <div className="logo-square">🏙️</div>
-                        GITHUB CITY
+                        GITSCAPE
                     </div>
                     <p style={{ lineHeight: '1.6', marginBottom: '20px' }}>
                         A creative exploration of coding history.<br />
@@ -736,7 +736,7 @@ const AntigravityLanding = () => {
                 <div className="footer-links-col">
                     <h4 className="footer-col-title">Connect</h4>
                     <div className="footer-links">
-                        <a href="https://github.com/Eklavvyaaaaa/githubcity" className="footer-link">GitHub Repo</a>
+                        <a href="https://github.com/Eklavvyaaaaa/gitscape" className="footer-link">GitHub Repo</a>
                         <a href="#" className="footer-link">Documentation</a>
                         <a href="#" className="footer-link">API Status</a>
                     </div>

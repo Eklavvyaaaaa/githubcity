@@ -49,7 +49,7 @@ function HUD() {
 
         const a = document.createElement('a')
         a.href = dataUrl
-        a.download = `${username}-github-city.png`
+        a.download = `${username}-gitscape.png`
         a.click()
     }
 
@@ -58,14 +58,14 @@ function HUD() {
         if (!canvas) return
 
         const dataUrl = canvas.toDataURL('image/png')
-        const shareText = `🏙️ ${username}'s GitHub City\n\n📦 ${repos.length} repos | ⭐ ${totalStars} stars | 🔥 ${contributions} contributions\n🚗 Driving a ${CAR_TIER_NAMES[carTier]}\n\nBuild yours at: ${window.location.origin}`
+        const shareText = `🏙️ ${username}'s Gitscape\n\n📦 ${repos.length} repos | ⭐ ${totalStars} stars | 🔥 ${contributions} contributions\n🚗 Driving a ${CAR_TIER_NAMES[carTier]}\n\nBuild yours at: ${window.location.origin}`
 
         if (navigator.share && navigator.canShare) {
             try {
                 const blob = await (await fetch(dataUrl)).blob()
-                const file = new File([blob], `${username}-github-city.png`, { type: 'image/png' })
+                const file = new File([blob], `${username}-gitscape.png`, { type: 'image/png' })
                 await navigator.share({
-                    title: `${username}'s GitHub City`,
+                    title: `${username}'s Gitscape`,
                     text: `Check out my GitHub profile as a 3D city! 🏙️ ${repos.length} repos, ${contributions} contributions, driving a ${CAR_TIER_NAMES[carTier]}!`,
                     files: [file],
                 })
@@ -85,7 +85,7 @@ function HUD() {
         if (!canvas) return
         const a = document.createElement('a')
         a.href = canvas.toDataURL('image/png')
-        a.download = `${username}-github-city.png`
+        a.download = `${username}-gitscape.png`
         a.click()
         setShareStatus('SAVED!')
         setTimeout(() => setShareStatus(''), 2000)
