@@ -4,6 +4,7 @@ import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import useStore from '../store/store'
 import { startEngine, updateEngineSound, stopEngine, playTireScreech, playJumpSound, playLandThud, playCoinCollect } from '../services/audio'
+import { CELL_SIZE, ROAD_WIDTH, BLOCK_SIZE } from '../city/CityGenerator'
 
 // ===========================
 // Shared materials (reuse across all meshes)
@@ -22,6 +23,7 @@ const SHARED_MATERIALS = {
     parkGround: new THREE.MeshLambertMaterial({ color: '#2b3a32', flatShading: true }),
     wheel: new THREE.MeshLambertMaterial({ color: '#1a1a1a', flatShading: true }),
     rooftopUnit: new THREE.MeshLambertMaterial({ color: '#444444', flatShading: true }),
+    window: new THREE.MeshBasicMaterial({ color: '#FFE4A0', transparent: true, opacity: 0.8 }),
 }
 
 // Shared geometries
@@ -83,6 +85,82 @@ function InstancedBuildings({ buildings }) {
 }
 
 // ===========================
+// Building Windows (Instanced lights on facades)
+// ===========================
+function BuildingWindows({ buildings }) {
+    const meshRef = useRef()
+    const dummy = useMemo(() => new THREE.Object3D(), [])
+
+    // Calculate total number of windows
+    const windowData = useMemo(() => {
+        const data = []
+        buildings.forEach(b => {
+            if (b.isInactive || b.isWeathered) return // abandoned/old repos have no lights
+
+            const rows = b.windowRows || 0
+            const cols = b.windowCols || 0
+
+            // Front & Back walls
+            for (let r = 0; r < rows; r++) {
+                const py = 1.5 + r * 4
+                if (py > b.height - 1) continue
+
+                for (let c = 0; c < cols; c++) {
+                    const px = b.x - b.width / 2 + 1.25 + c * 2.5
+
+                    // Front facade
+                    if (Math.random() > 0.3) {
+                        data.push({ x: px, y: py, z: b.z + b.depth / 2 + 0.05 })
+                    }
+                    // Back facade
+                    if (Math.random() > 0.3) {
+                        data.push({ x: px, y: py, z: b.z - b.depth / 2 - 0.05 })
+                    }
+                }
+            }
+
+            // Left & Right walls (simplified)
+            for (let r = 0; r < rows; r++) {
+                const py = 1.5 + r * 4
+                if (py > b.height - 1) continue
+
+                const sideCols = Math.max(1, Math.floor(b.depth / 2.5))
+                for (let c = 0; c < sideCols; c++) {
+                    const pz = b.z - b.depth / 2 + 1.25 + c * 2.5
+
+                    // Right
+                    if (Math.random() > 0.3) {
+                        data.push({ x: b.x + b.width / 2 + 0.05, y: py, z: pz })
+                    }
+                    // Left
+                    if (Math.random() > 0.3) {
+                        data.push({ x: b.x - b.width / 2 - 0.05, y: py, z: pz })
+                    }
+                }
+            }
+        })
+        return data
+    }, [buildings])
+
+    useEffect(() => {
+        if (!meshRef.current || windowData.length === 0) return
+        windowData.forEach((w, i) => {
+            dummy.position.set(w.x, w.y, w.z)
+            dummy.scale.set(0.6, 1.2, 0.6)
+            dummy.updateMatrix()
+            meshRef.current.setMatrixAt(i, dummy.matrix)
+        })
+        meshRef.current.instanceMatrix.needsUpdate = true
+    }, [windowData, dummy])
+
+    if (windowData.length === 0) return null
+
+    return (
+        <instancedMesh ref={meshRef} args={[SHARED_GEOS.box, SHARED_MATERIALS.window, windowData.length]} frustumCulled={false} />
+    )
+}
+
+// ===========================
 // Landmark decorations (only for pinned, max ~3)
 // ===========================
 function Landmarks({ buildings }) {
@@ -133,39 +211,73 @@ function RoofDetails({ buildings }) {
 }
 
 // ===========================
-// Roads (simplified, fewer meshes)
+// Roads and Blocks (City Grid structure)
 // ===========================
 function Roads({ bounds }) {
-    const step = 16
+    const step = CELL_SIZE
     const width = bounds.maxX - bounds.minX
     const depth = bounds.maxZ - bounds.minZ
     const centerX = (bounds.minX + bounds.maxX) / 2
     const centerZ = (bounds.minZ + bounds.maxZ) / 2
+    const biomeColor = useStore((s) => s.biomeColor)
 
-    const { hRoads, vRoads } = useMemo(() => {
-        const h = [], v = []
+    const { hRoads, vRoads, blocks } = useMemo(() => {
+        const h = [], v = [], b = []
         for (let z = Math.floor(bounds.minZ / step) * step; z <= bounds.maxZ; z += step) h.push(z)
         for (let x = Math.floor(bounds.minX / step) * step; x <= bounds.maxX; x += step) v.push(x)
-        return { hRoads: h, vRoads: v }
-    }, [bounds])
+
+        // Calculate block centers
+        for (let z = Math.floor(bounds.minZ / step) * step; z < bounds.maxZ; z += step) {
+            for (let x = Math.floor(bounds.minX / step) * step; x < bounds.maxX; x += step) {
+                b.push({ x: x + step / 2, z: z + step / 2 })
+            }
+        }
+
+        return { hRoads: h, vRoads: v, blocks: b }
+    }, [bounds, step])
 
     // Merge all horizontal roads into one merged geometry
     const hRoadGeo = useMemo(() => {
-        const geo = new THREE.PlaneGeometry(width + 60, 5)
+        const geo = new THREE.PlaneGeometry(width + 80, ROAD_WIDTH + 1)
         return geo
     }, [width])
 
     const vRoadGeo = useMemo(() => {
-        const geo = new THREE.PlaneGeometry(5, depth + 60)
+        const geo = new THREE.PlaneGeometry(ROAD_WIDTH + 1, depth + 80)
         return geo
     }, [depth])
 
+    const groundMat = useMemo(() => {
+        return new THREE.MeshLambertMaterial({ color: biomeColor.ground, flatShading: true })
+    }, [biomeColor.ground])
+
+    // Instanced blocks (sidewalk pads)
+    const blockMeshRef = useRef()
+    const dummy = useMemo(() => new THREE.Object3D(), [])
+
+    useEffect(() => {
+        if (!blockMeshRef.current || blocks.length === 0) return
+        blocks.forEach((blk, i) => {
+            dummy.position.set(blk.x, 0.05, blk.z)
+            dummy.rotation.set(-Math.PI / 2, 0, 0)
+            dummy.scale.set(1, 1, 1)
+            dummy.updateMatrix()
+            blockMeshRef.current.setMatrixAt(i, dummy.matrix)
+        })
+        blockMeshRef.current.instanceMatrix.needsUpdate = true
+    }, [blocks, dummy])
+
     return (
         <group>
-            {/* Ground */}
-            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[centerX, -0.05, centerZ]} receiveShadow material={SHARED_MATERIALS.ground}>
-                <planeGeometry args={[width + 80, depth + 80]} />
+            {/* Ground (Biome Color) */}
+            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[centerX, -0.05, centerZ]} receiveShadow material={groundMat}>
+                <planeGeometry args={[width + 100, depth + 100]} />
             </mesh>
+
+            {/* City Blocks (Sidewalk Pads) */}
+            {blocks.length > 0 && (
+                <instancedMesh ref={blockMeshRef} args={[new THREE.PlaneGeometry(BLOCK_SIZE, BLOCK_SIZE), SHARED_MATERIALS.sidewalk, blocks.length]} receiveShadow frustumCulled={false} />
+            )}
 
             {/* Horizontal roads */}
             {hRoads.map((z, i) => (
@@ -177,7 +289,7 @@ function Roads({ bounds }) {
                 <mesh key={`v-${i}`} rotation={[-Math.PI / 2, 0, 0]} position={[x, 0.02, centerZ]} geometry={vRoadGeo} material={SHARED_MATERIALS.road} />
             ))}
 
-            {/* Center lines — single merged geometry per direction instead of hundreds of dash meshes */}
+            {/* Center lines */}
             {hRoads.map((z, i) => (
                 <mesh key={`cl-h-${i}`} rotation={[-Math.PI / 2, 0, 0]} position={[centerX, 0.03, z]} material={SHARED_MATERIALS.dashLine}>
                     <planeGeometry args={[width + 40, 0.12]} />
@@ -942,6 +1054,11 @@ export function CityEnvironment({ cityData, weather, userData, repos, contributi
 
             {/* Static City Elements */}
             <InstancedBuildings buildings={buildings} />
+
+            {/* Glowing Windows */}
+            <BuildingWindows buildings={buildings} />
+
+            {/* Landmarks (detailed props for top repos) */}
             <Landmarks buildings={buildings} />
             <RoofDetails buildings={buildings} />
             <Roads bounds={bounds} />

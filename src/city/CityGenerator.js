@@ -5,10 +5,10 @@
 
 import { getDistrictStyle, assignDistricts } from './districts'
 
-const BLOCK_SIZE = 12      // Size of one city block
-const ROAD_WIDTH = 4       // Width of roads
-const CELL_SIZE = BLOCK_SIZE + ROAD_WIDTH  // Total cell spacing
-const BUILDING_GAP = 1     // Gap between buildings
+export const BLOCK_SIZE = 18      // Size of one city block (increased for larger buildings)
+export const ROAD_WIDTH = 10       // Width of roads (wider for better driving)
+export const CELL_SIZE = BLOCK_SIZE + ROAD_WIDTH  // Total cell spacing
+export const BUILDING_GAP = 3     // Gap between building edge and plot edge
 
 /**
  * Generate a complete city from GitHub data
@@ -76,8 +76,8 @@ export function generateCity(user, repos) {
             const localCol = i % localCols
             const localRow = Math.floor(i / localCols)
 
-            const x = distOffsetX + localCol * CELL_SIZE
-            const z = distOffsetZ + localRow * CELL_SIZE
+            const x = distOffsetX + localCol * CELL_SIZE + CELL_SIZE / 2
+            const z = distOffsetZ + localRow * CELL_SIZE + CELL_SIZE / 2
 
             // Building height based on stars + forks + code size
             const stars = repo.stargazers_count || 0
@@ -87,12 +87,15 @@ export function generateCity(user, repos) {
             const height = baseHeight
                 + Math.log2(stars + 1) * 4
                 + Math.log2(forks + 1) * 2
-                + Math.log2(size + 1) * 1.5   // bigger repos = taller buildings
+                + Math.log2(size + 1) * 1.5
 
-            // Building width & depth scale with repo size (more code → bigger footprint)
-            const sizeBonus = Math.log2(size + 1) * 0.8  // ~0 for empty, ~8 for large repos
-            const width = 5 + Math.random() * 2 + Math.min(sizeBonus, 7)
-            const depth = 5 + Math.random() * 2 + Math.min(sizeBonus * 1.3, 9)
+            // Building footprint scales with repo size, CLAMPED to fit within plot
+            const maxBuildingSize = BLOCK_SIZE - BUILDING_GAP * 2  // max that fits in plot
+            const sizeBonus = Math.log2(size + 1) * 0.8
+            const rawWidth = 5 + Math.random() * 2 + Math.min(sizeBonus, 7)
+            const rawDepth = 5 + Math.random() * 2 + Math.min(sizeBonus * 1.3, 9)
+            const width = Math.min(rawWidth, maxBuildingSize)
+            const depth = Math.min(rawDepth, maxBuildingSize)
 
             // Age/weathering based on last push
             const daysSinceUpdate = (Date.now() - new Date(repo.pushed_at).getTime()) / (1000 * 60 * 60 * 24)
@@ -111,13 +114,17 @@ export function generateCity(user, repos) {
                     district: lang,
                 })
             } else {
+                // Number of window rows based on height
+                const windowRows = Math.max(1, Math.floor(height / 4))
+                const windowCols = Math.max(1, Math.floor(width / 2.5))
+
                 buildings.push({
                     id: repo.id,
                     name: repo.name,
                     fullName: repo.full_name,
                     x, z,
                     width,
-                    height: Math.max(height, 3),
+                    height: Math.max(height, 4),
                     depth,
                     color: style.primary,
                     secondaryColor: style.secondary,
@@ -131,8 +138,11 @@ export function generateCity(user, repos) {
                     isWeathered,
                     isInactive,
                     isPrivate: repo.private,
-                    isPinned: i < 3 && stars > 0, // Top 3 starred repos are "pinned"
+                    isPinned: i < 3 && stars > 0,
                     url: repo.html_url,
+                    windowRows,
+                    windowCols,
+                    repoSize: size,
                 })
             }
 
@@ -157,7 +167,7 @@ export function generateCity(user, repos) {
     // Calculate overall bounds
     const allX = buildings.map(b => b.x).concat(parks.map(p => p.x))
     const allZ = buildings.map(b => b.z).concat(parks.map(p => p.z))
-    const margin = 30
+    const margin = 40
     const bounds = {
         minX: Math.min(...allX) - margin,
         maxX: Math.max(...allX) + margin,
@@ -167,8 +177,8 @@ export function generateCity(user, repos) {
 
     // Garage spawn point — placed south of the city, away from all buildings
     const garageSpawn = {
-        x: (bounds.minX + bounds.maxX) / 2,  // centered horizontally
-        z: bounds.maxZ + 15,                  // 15 units past the south edge
+        x: (bounds.minX + bounds.maxX) / 2,
+        z: bounds.maxZ + 20,
     }
 
     // Generate roads along the grid lines
@@ -222,7 +232,7 @@ function generateProps(buildings, bounds) {
             props.push({ type: 'lamp', x: x - ROAD_WIDTH / 2 - 0.5, z: z - ROAD_WIDTH / 2 - 0.5 })
 
             // Occasional trees
-            if (Math.random() > 0.6) {
+            if (Math.random() > 0.5) {
                 props.push({
                     type: 'tree',
                     x: x + BLOCK_SIZE / 2 + (Math.random() - 0.5) * 2,
