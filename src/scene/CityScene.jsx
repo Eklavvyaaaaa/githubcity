@@ -1,6 +1,6 @@
 import { useRef, useMemo, useEffect, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Html } from '@react-three/drei'
+import { Html, Text } from '@react-three/drei'
 import * as THREE from 'three'
 import useStore from '../store/store'
 import { startEngine, updateEngineSound, stopEngine, playTireScreech, playJumpSound, playLandThud, playCoinCollect } from '../services/audio'
@@ -111,11 +111,11 @@ function BuildingWindows({ buildings }) {
 
                     // Front facade
                     if (Math.random() > 0.3) {
-                        data.push({ x: px, y: py, z: b.z + b.depth / 2 + 0.05 })
+                        data.push({ x: px, y: py, z: b.z + b.depth / 2 + 0.15 })
                     }
                     // Back facade
                     if (Math.random() > 0.3) {
-                        data.push({ x: px, y: py, z: b.z - b.depth / 2 - 0.05 })
+                        data.push({ x: px, y: py, z: b.z - b.depth / 2 - 0.15 })
                     }
                 }
             }
@@ -131,11 +131,11 @@ function BuildingWindows({ buildings }) {
 
                     // Right
                     if (Math.random() > 0.3) {
-                        data.push({ x: b.x + b.width / 2 + 0.05, y: py, z: pz })
+                        data.push({ x: b.x + b.width / 2 + 0.15, y: py, z: pz })
                     }
                     // Left
                     if (Math.random() > 0.3) {
-                        data.push({ x: b.x - b.width / 2 - 0.05, y: py, z: pz })
+                        data.push({ x: b.x - b.width / 2 - 0.15, y: py, z: pz })
                     }
                 }
             }
@@ -541,6 +541,8 @@ const carStateRef = { current: { position: new THREE.Vector3(8, 0, 8), rotation:
 function Car({ carTier, buildings, spawnPos }) {
     const groupRef = useRef()
     const setCarSpeed = useStore((s) => s.setCarSpeed)
+    const cityData = useStore((s) => s.cityData)
+    const bounds = cityData?.bounds || { minX: -200, maxX: 200, minZ: -200, maxZ: 200 }
     const config = CAR_CONFIGS[carTier] || CAR_CONFIGS[0]
     const { bodyH, bodyW, bodyL, roofH, roofL, speed: maxSpeed, wheelR } = config
 
@@ -580,7 +582,7 @@ function Car({ carTier, buildings, spawnPos }) {
     useEffect(() => {
         const onKey = (e) => {
             const key = e.key.toLowerCase()
-            const map = { w: 'w', arrowup: 'w', s: 's', arrowdown: 's', a: 'a', arrowleft: 'a', d: 'd', arrowright: 'd', ' ': 'space' }
+            const map = { w: 'w', arrowup: 'w', s: 's', arrowdown: 's', a: 'a', arrowleft: 'a', d: 'd', arrowright: 'd', ' ': 'space', q: 'q', c: 'c' }
             const mapped = map[key]
             if (mapped) state.current.keys[mapped] = e.type === 'keydown'
         }
@@ -593,10 +595,10 @@ function Car({ carTier, buildings, spawnPos }) {
     useFrame((_, delta) => {
         const s = state.current
         const dt = Math.min(delta, 0.05)
-        const accel = maxSpeed * 1.8
-        const dampingPer60 = 0.94
+        const accel = maxSpeed * 1.6
+        const dampingPer60 = 0.95
         const damping = Math.pow(dampingPer60, dt * 60)
-        const turnSpeed = 2.8
+        const turnSpeed = 2.4
 
         if (s.keys.w) s.velocity = Math.min(s.velocity + accel * dt, maxSpeed)
         else if (s.keys.s) s.velocity = Math.max(s.velocity - accel * dt, -maxSpeed * 0.35)
@@ -605,9 +607,13 @@ function Car({ carTier, buildings, spawnPos }) {
         if (Math.abs(s.velocity) < 0.1) s.velocity = 0
 
         if (Math.abs(s.velocity) > 1) {
-            const tf = Math.min(Math.abs(s.velocity) / maxSpeed, 1)
-            if (s.keys.a) s.rotation += turnSpeed * dt * tf * Math.sign(s.velocity)
-            if (s.keys.d) s.rotation -= turnSpeed * dt * tf * Math.sign(s.velocity)
+            const tf = Math.min(Math.abs(s.velocity) / (maxSpeed * 0.8), 1)
+            let slip = 1.0;
+            // simulate slight drift at high speeds by reducing turn response
+            if (Math.abs(s.velocity) > maxSpeed * 0.8) slip = 0.85;
+
+            if (s.keys.a) s.rotation += turnSpeed * dt * tf * slip * Math.sign(s.velocity)
+            if (s.keys.d) s.rotation -= turnSpeed * dt * tf * slip * Math.sign(s.velocity)
         }
 
         const dx = -Math.sin(s.rotation) * s.velocity * dt
@@ -632,8 +638,18 @@ function Car({ carTier, buildings, spawnPos }) {
             }
         }
 
-        if (!collided) { s.position.x = newX; s.position.z = newZ }
-        else s.velocity *= -0.2
+        // Bound car to city limits (chunk boundaries)
+        const cityEdgeX = Math.max(Math.abs(bounds.minX), Math.abs(bounds.maxX)) + 20;
+        const cityEdgeZ = Math.max(Math.abs(bounds.minZ), Math.abs(bounds.maxZ)) + 20;
+
+        if (newX > cityEdgeX || newX < -cityEdgeX || newZ > cityEdgeZ || newZ < -cityEdgeZ) {
+            s.velocity *= -0.5 // Bounce off invisible wall
+        } else if (!collided) {
+            s.position.x = newX;
+            s.position.z = newZ;
+        } else {
+            s.velocity *= -0.2
+        }
 
         // --- Jump physics ---
         if (s.keys.space && s.isGrounded) {
@@ -673,12 +689,6 @@ function Car({ carTier, buildings, spawnPos }) {
 
         // --- Engine sound pitch ---
         updateEngineSound(s.velocity, maxSpeed)
-
-        // --- Tire screech on sharp turns at speed ---
-        const turnRate = Math.abs((s.keys.a ? 1 : 0) - (s.keys.d ? 1 : 0))
-        if (turnRate > 0 && Math.abs(s.velocity) > maxSpeed * 0.5) {
-            playTireScreech()
-        }
     })
 
     const carMaterial = useMemo(() => (
@@ -693,48 +703,82 @@ function Car({ carTier, buildings, spawnPos }) {
                 <meshBasicMaterial color="#000000" transparent opacity={0.4} />
             </mesh>
 
-            {/* Body */}
-            <mesh position={[0, bodyH / 2 + wheelR * 1.2, 0]} material={carMaterial}>
-                <boxGeometry args={[bodyW, bodyH, bodyL]} />
-            </mesh>
-            {/* Roof */}
-            <mesh position={[0, bodyH + wheelR * 1.2 + roofH / 2, bodyL * -0.05]}>
-                <boxGeometry args={[bodyW - 0.3, roofH, bodyL * roofL]} />
-                <meshLambertMaterial color={config.color} transparent opacity={0.85} flatShading={true} />
-            </mesh>
-            {/* Hood */}
-            <mesh position={[0, bodyH * 0.7 + wheelR * 1.2, bodyL * 0.35]} material={carMaterial}>
-                <boxGeometry args={[bodyW - 0.1, bodyH * 0.3, bodyL * 0.25]} />
-            </mesh>
-            {/* Wheels (shared geometry & material) */}
-            {[[-bodyW / 2 - 0.1, wheelR, bodyL * 0.3], [bodyW / 2 + 0.1, wheelR, bodyL * 0.3],
-            [-bodyW / 2 - 0.1, wheelR, -bodyL * 0.3], [bodyW / 2 + 0.1, wheelR, -bodyL * 0.3]].map(([x, y, z], i) => (
-                <mesh key={i} position={[x, y, z]} rotation={[0, 0, Math.PI / 2]} geometry={SHARED_GEOS.wheel} material={SHARED_MATERIALS.wheel} />
-            ))}
-            {/* Headlights */}
-            <mesh position={[-0.65, bodyH * 0.5 + wheelR * 1.2, bodyL / 2 + 0.02]} material={SHARED_MATERIALS.headlight}>
-                <boxGeometry args={[0.35, 0.2, 0.05]} />
-            </mesh>
-            <mesh position={[0.65, bodyH * 0.5 + wheelR * 1.2, bodyL / 2 + 0.02]} material={SHARED_MATERIALS.headlight}>
-                <boxGeometry args={[0.35, 0.2, 0.05]} />
-            </mesh>
-            {/* Taillights */}
-            <mesh position={[-0.75, bodyH * 0.5 + wheelR * 1.2, -bodyL / 2 - 0.02]} material={SHARED_MATERIALS.taillight}>
-                <boxGeometry args={[0.3, 0.15, 0.05]} />
-            </mesh>
-            <mesh position={[0.75, bodyH * 0.5 + wheelR * 1.2, -bodyL / 2 - 0.02]} material={SHARED_MATERIALS.taillight}>
-                <boxGeometry args={[0.3, 0.15, 0.05]} />
-            </mesh>
-            {/* Single headlight for the car (just 1 light, not per-lamp) */}
-            <pointLight position={[0, bodyH * 0.5 + wheelR, bodyL / 2 + 3]} color="#FFFDE0" intensity={2} distance={30} decay={2} />
-            {/* Spoiler for higher tiers */}
-            {carTier >= 3 && (
-                <group position={[0, bodyH + wheelR * 1.2 + 0.1, -bodyL * 0.45]}>
-                    <mesh material={carMaterial}><boxGeometry args={[bodyW + 0.2, 0.08, 0.6]} /></mesh>
-                    <mesh position={[-0.6, -0.3, 0]}><boxGeometry args={[0.08, 0.6, 0.08]} /><meshLambertMaterial color="#333" flatShading={true} /></mesh>
-                    <mesh position={[0.6, -0.3, 0]}><boxGeometry args={[0.08, 0.6, 0.08]} /><meshLambertMaterial color="#333" flatShading={true} /></mesh>
-                </group>
-            )}
+            {/* Wrapper to flip visual model 180 deg without breaking physics rotation */}
+            <group rotation={[0, Math.PI, 0]}>
+
+                {/* Main Body Chassis */}
+                <mesh position={[0, bodyH / 2 + wheelR - 0.1, 0]} material={carMaterial}>
+                    <boxGeometry args={[bodyW, bodyH, bodyL]} />
+                </mesh>
+
+                {/* Lower bumper/trim */}
+                <mesh position={[0, wheelR, 0]}>
+                    <boxGeometry args={[bodyW + 0.1, 0.2, bodyL + 0.1]} />
+                    <meshLambertMaterial color="#222" />
+                </mesh>
+
+                {/* Roof */}
+                <mesh position={[0, bodyH + wheelR + roofH / 2 - 0.1, bodyL * -0.05]}>
+                    <boxGeometry args={[bodyW - 0.2, roofH, bodyL * roofL]} />
+                    <meshLambertMaterial color={config.color} transparent opacity={0.9} />
+                </mesh>
+
+                {/* Windows (Dark Glass) */}
+                <mesh position={[0, bodyH + wheelR + roofH / 2 - 0.1, bodyL * -0.05 + (bodyL * roofL) / 2 + 0.01]}>
+                    <boxGeometry args={[bodyW - 0.25, roofH - 0.1, 0.05]} />
+                    <meshLambertMaterial color="#111" />
+                </mesh>
+                <mesh position={[0, bodyH + wheelR + roofH / 2 - 0.1, bodyL * -0.05 - (bodyL * roofL) / 2 - 0.01]}>
+                    <boxGeometry args={[bodyW - 0.25, roofH - 0.1, 0.05]} />
+                    <meshLambertMaterial color="#111" />
+                </mesh>
+
+                {/* Wheels (Detailed cylinders) */}
+                {[[-bodyW / 2, wheelR, bodyL * 0.3], [bodyW / 2, wheelR, bodyL * 0.3],
+                [-bodyW / 2, wheelR, -bodyL * 0.3], [bodyW / 2, wheelR, -bodyL * 0.3]].map(([x, y, z], i) => (
+                    <group key={i} position={[x, y, z]} rotation={[0, 0, Math.PI / 2]}>
+                        <mesh rotation={[Math.PI / 2, 0, 0]}>
+                            <cylinderGeometry args={[0.35, 0.35, 0.28, 16]} />
+                            <meshLambertMaterial color="#050505" />
+                        </mesh>
+                        <mesh position={[0, (i % 2 === 0 ? -0.145 : 0.145), 0]} rotation={[Math.PI / 2, 0, 0]}>
+                            <cylinderGeometry args={[0.22, 0.22, 0.02, 12]} />
+                            <meshLambertMaterial color="#888" emissive="#333" />
+                        </mesh>
+                        <mesh position={[0, (i % 2 === 0 ? -0.155 : 0.155), 0]} rotation={[Math.PI / 2, 0, 0]}>
+                            <circleGeometry args={[0.08, 12]} />
+                            <meshBasicMaterial color={config.color} />
+                        </mesh>
+                    </group>
+                ))}
+
+                {/* Headlights */}
+                <mesh position={[-0.7, bodyH * 0.5 + wheelR, bodyL / 2 + 0.02]} material={SHARED_MATERIALS.headlight}>
+                    <boxGeometry args={[0.4, 0.2, 0.05]} />
+                </mesh>
+                <mesh position={[0.7, bodyH * 0.5 + wheelR, bodyL / 2 + 0.02]} material={SHARED_MATERIALS.headlight}>
+                    <boxGeometry args={[0.4, 0.2, 0.05]} />
+                </mesh>
+
+                {/* Taillights */}
+                <mesh position={[-0.7, bodyH * 0.5 + wheelR, -bodyL / 2 - 0.02]} material={SHARED_MATERIALS.taillight}>
+                    <boxGeometry args={[0.4, 0.15, 0.05]} />
+                </mesh>
+                <mesh position={[0.7, bodyH * 0.5 + wheelR, -bodyL / 2 - 0.02]} material={SHARED_MATERIALS.taillight}>
+                    <boxGeometry args={[0.4, 0.15, 0.05]} />
+                </mesh>
+
+                <pointLight position={[0, bodyH * 0.5 + wheelR, bodyL / 2 + 2]} color="#FFFDE0" intensity={1.5} distance={40} decay={2} />
+
+                {/* Spoiler */}
+                {carTier >= 3 && (
+                    <group position={[0, bodyH + wheelR + 0.15, -bodyL * 0.45]}>
+                        <mesh material={carMaterial}><boxGeometry args={[bodyW + 0.3, 0.08, 0.6]} /></mesh>
+                        <mesh position={[-0.6, -0.3, 0]}><boxGeometry args={[0.08, 0.6, 0.08]} /><meshLambertMaterial color="#222" /></mesh>
+                        <mesh position={[0.6, -0.3, 0]}><boxGeometry args={[0.08, 0.6, 0.08]} /><meshLambertMaterial color="#222" /></mesh>
+                    </group>
+                )}
+            </group>
         </group>
     )
 }
@@ -751,6 +795,7 @@ function CameraController({ bounds }) {
     const { camera } = useThree()
     const gamePhase = useStore((s) => s.gamePhase)
     const setGamePhase = useStore((s) => s.setGamePhase)
+    const isSkylineViewUI = useStore((s) => s.isSkylineView)
     const targetPos = useRef(new THREE.Vector3(0, 30, 40))
     const lookTarget = useRef(new THREE.Vector3(0, 0, 0))
     const introTime = useRef(0)
@@ -773,6 +818,8 @@ function CameraController({ bounds }) {
     useFrame((_, delta) => {
         const carPos = carStateRef.current.position
         const carRot = carStateRef.current.rotation
+        const carCenter = cityCenter; // Reference for zoom out
+        const keys = window.__carStateStore ? window.__carStateStore.keys : {};
 
         // Intro flythrough (4 seconds)
         if (gamePhase === 'intro' || (gamePhase === 'playing' && !introDone.current && introTime.current < 4)) {
@@ -798,13 +845,29 @@ function CameraController({ bounds }) {
             return
         }
 
-        // Normal driving camera
-        _camOffset.set(Math.sin(carRot) * 18, 12, Math.cos(carRot) * 18)
-        _camDesired.copy(carPos).add(_camOffset)
-        targetPos.current.lerp(_camDesired, 0.04)
+        // Normal driving camera OR Skyline View
+        const isSkylineView = keys.q || keys.c || isSkylineViewUI;
 
-        _camLookAt.copy(carPos).setY(carPos.y + 2)
-        lookTarget.current.lerp(_camLookAt, 0.08)
+        if (isSkylineView) {
+            // Drone zoom following the car over the skyline
+            const zoomHeight = Math.max(40, citySpan * 0.4);
+            const zoomBack = Math.max(30, citySpan * 0.3);
+            _camOffset.set(Math.sin(carRot) * zoomBack, zoomHeight, Math.cos(carRot) * zoomBack);
+            _camDesired.copy(carPos).add(_camOffset);
+            targetPos.current.lerp(_camDesired, 0.05);
+
+            // Look down at the car
+            _camLookAt.copy(carPos).setY(carPos.y + 5);
+            lookTarget.current.lerp(_camLookAt, 0.08);
+        } else {
+            // Normal tight driving camera
+            _camOffset.set(Math.sin(carRot) * 18, 12, Math.cos(carRot) * 18)
+            _camDesired.copy(carPos).add(_camOffset)
+            targetPos.current.lerp(_camDesired, 0.04)
+
+            _camLookAt.copy(carPos).setY(carPos.y + 2)
+            lookTarget.current.lerp(_camLookAt, 0.08)
+        }
 
         camera.position.lerp(targetPos.current, 0.06)
         camera.lookAt(lookTarget.current)
@@ -986,9 +1049,14 @@ function LocationTracker({ buildings, districts }) {
 
         // 1. Nearby building
         let closest = null
-        let closestDist = 12 // Max tooltip distance
+        let closestDist = 12 // Max distance to EDGE of building
         for (const b of buildings) {
-            const dist = Math.sqrt((carPos.x - b.x) ** 2 + (carPos.z - b.z) ** 2)
+            const hw = b.width / 2;
+            const hz = b.depth / 2;
+            const dx = Math.max(0, Math.abs(carPos.x - b.x) - hw);
+            const dz = Math.max(0, Math.abs(carPos.z - b.z) - hz);
+            const dist = Math.sqrt(dx * dx + dz * dz);
+
             if (dist < closestDist) {
                 closestDist = dist
                 closest = b
@@ -1157,6 +1225,50 @@ export function CityEnvironment({ cityData, weather, userData, repos, contributi
 }
 
 // ===========================
+// Spawn Billboard (Info Sign)
+// ===========================
+function SpawnBillboard({ pos, userData, repos, contributions }) {
+    if (!userData) return null
+    return (
+        <group position={[pos.x, 3, pos.z - 8]} rotation={[0, 0, 0]}>
+            {/* Poles */}
+            <mesh position={[-3, -1.5, 0]}>
+                <cylinderGeometry args={[0.15, 0.15, 3]} />
+                <meshLambertMaterial color="#333" />
+            </mesh>
+            <mesh position={[3, -1.5, 0]}>
+                <cylinderGeometry args={[0.15, 0.15, 3]} />
+                <meshLambertMaterial color="#333" />
+            </mesh>
+            {/* Sign Board Inner */}
+            <mesh position={[0, 1.2, 0]}>
+                <boxGeometry args={[9, 4.5, 0.4]} />
+                <meshLambertMaterial color="#0b0e14" />
+            </mesh>
+            {/* Sign Board Outer Trim */}
+            <mesh position={[0, 1.2, 0.15]}>
+                <boxGeometry args={[9.2, 4.7, 0.2]} />
+                <meshLambertMaterial color="#00f5a0" emissive="#002b1f" />
+            </mesh>
+
+            {/* Text Layers */}
+            <Text position={[0, 2.5, 0.45]} fontSize={0.7} color="#00f5a0" anchorY="top">
+                {userData.login ? `${userData.login.toUpperCase()}'S RUN` : 'GITHUB CITY'}
+            </Text>
+            <Text position={[0, 1.3, 0.45]} fontSize={0.4} color="#e6edf3">
+                {repos?.length || 0} REPOSITORIES
+            </Text>
+            <Text position={[0, 0.7, 0.45]} fontSize={0.4} color="#e6edf3">
+                {contributions || 0} YEARLY COMMITS
+            </Text>
+            <Text position={[0, -0.3, 0.45]} fontSize={0.3} color="#7d8590">
+                DRIVE INTO REPOS FOR MORE DETAILS
+            </Text>
+        </group>
+    )
+}
+
+// ===========================
 // Main City Scene (Single Player)
 // ===========================
 export default function CityScene() {
@@ -1220,8 +1332,8 @@ export default function CityScene() {
                 <Car carTier={carTier} buildings={buildings} spawnPos={garageSpawn} />
                 <CameraController bounds={bounds} />
 
-                {/* Garage Structure at Spawn */}
-                {garageSpawn && <GarageStructure pos={garageSpawn} />}
+                {/* Spawn Billboard Info Sign */}
+                {garageSpawn && <SpawnBillboard pos={garageSpawn} userData={userData} repos={repos} contributions={contributions} />}
 
                 {/* Commit Coins Mini-Game */}
                 <CommitCoins buildings={buildings} />

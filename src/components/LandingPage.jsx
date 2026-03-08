@@ -295,9 +295,9 @@ const AntigravityLanding = () => {
                     margin-bottom: 24px;
                 }
                 .hero-title {
-                    font-size: clamp(44px, 6vw, 84px);
+                    font-size: clamp(40px, 5vw, 76px);
                     line-height: 1.05;
-                    margin: 0 0 24px;
+                    margin: 0 0 20px;
                     letter-spacing: -2px;
                 }
                 .text-gradient {
@@ -308,22 +308,23 @@ const AntigravityLanding = () => {
                 .hero-sub {
                     color: var(--muted);
                     font-size: 17px;
-                    line-height: 1.7;
-                    max-width: 440px;
-                    margin-bottom: 40px;
+                    line-height: 1.6;
+                    max-width: 480px;
+                    margin-bottom: 36px;
                 }
                 .input-row {
                     display: flex;
                     gap: 12px;
                     background: var(--surface);
-                    padding: 8px;
+                    padding: 8px 8px 8px 16px;
                     border-radius: 12px;
                     border: 1px solid var(--border);
                     transition: border-color 0.3s;
                     margin-bottom: 32px;
+                    align-items: center;
                 }
                 .input-row:focus-within { border-color: var(--accent); }
-                .input-prefix { color: var(--accent); font-weight: 600; padding-left: 12px; display: flex; align-items: center; }
+                .input-prefix { color: var(--accent); font-weight: 600; display: flex; align-items: center; }
                 .ag-input {
                     background: transparent;
                     border: none;
@@ -331,21 +332,25 @@ const AntigravityLanding = () => {
                     font-family: 'JetBrains Mono', monospace;
                     font-size: 16px;
                     width: 100%;
-                    padding: 12px 8px;
+                    padding: 10px 0;
                     outline: none;
                 }
                 .cta-btn {
                     background: linear-gradient(135deg, var(--accent), var(--accent2));
                     color: #000;
                     border: none;
-                    padding: 0 28px;
+                    padding: 14px 28px;
                     border-radius: 8px;
-                    font-weight: 700;
+                    font-weight: 800;
                     font-family: 'Syne', sans-serif;
+                    font-size: 15px;
                     cursor: pointer;
                     transition: transform 0.2s, box-shadow 0.2s;
                     box-shadow: 0 4px 20px var(--glow);
                     white-space: nowrap;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
                 }
                 .cta-btn:hover { transform: scale(1.03); box-shadow: 0 6px 24px var(--glow); }
                 .cta-btn:active { transform: scale(0.98); }
@@ -390,7 +395,7 @@ const AntigravityLanding = () => {
                     flex-grow: 1;
                     text-align: center;
                 }
-                .browser-content { height: 480px; position: relative; }
+                .browser-content { height: 520px; position: relative; }
                 .preview-canvas { width: 100%; height: 100%; display: block; }
 
                 /* TICKER */

@@ -44,6 +44,10 @@ const useStore = create((set, get) => ({
   showRepoPanel: false,
   setShowRepoPanel: (show) => set({ showRepoPanel: show }),
 
+  // Skyline Camera
+  isSkylineView: false,
+  setIsSkylineView: (val) => set({ isSkylineView: val }),
+
   // Atmosphere
   weather: 'clear', // 'clear' | 'cloudy' | 'rainy' | 'foggy'
   setWeather: (weather) => set({ weather }),

@@ -28,6 +28,9 @@ function HUD() {
     const showRepoPanel = useStore((s) => s.showRepoPanel)
     const setShowRepoPanel = useStore((s) => s.setShowRepoPanel)
     const setActiveRepo = useStore((s) => s.setActiveRepo)
+    const activeRepo = useStore((s) => s.activeRepo)
+    const isSkylineView = useStore((s) => s.isSkylineView)
+    const setIsSkylineView = useStore((s) => s.setIsSkylineView)
 
     const setGamePhase = useStore((s) => s.setGamePhase)
     const reset = useStore((s) => s.reset)
@@ -160,6 +163,13 @@ function HUD() {
                     )}
 
                     <div className="hud-actions">
+                        <button
+                            className={`hud-btn ${isSkylineView ? 'hud-btn-active' : ''}`}
+                            onClick={() => { playUIClick(); setIsSkylineView(!isSkylineView) }}
+                            style={isSkylineView ? { background: 'var(--accent)', color: '#000' } : {}}
+                        >
+                            {isSkylineView ? 'DRIVING VIEW' : 'SKYLINE VIEW'}
+                        </button>
                         <button className="hud-btn" onClick={() => { playUIClick(); setGamePhase('garage') }}>GARAGE</button>
                         <button className="hud-btn" onClick={() => { playUIClick(); handleScreenshot() }} title="Screenshot">📸</button>
                         <button className="hud-btn hud-btn-primary" onClick={() => { playUIClick(); handleShare() }}>
