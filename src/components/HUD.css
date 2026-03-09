@@ -19,16 +19,20 @@
 
 /* Single Bottom Bar */
 .hud-bottom-bar {
-    background-color: rgba(26, 31, 53, 0.95);
-    backdrop-filter: blur(4px);
-    width: 100%;
-    height: 64px;
+    background-color: rgba(10, 10, 26, 0.7);
+    backdrop-filter: blur(12px) saturate(180%);
+    -webkit-backdrop-filter: blur(12px) saturate(180%);
+    width: calc(100% - 48px);
+    height: 72px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 0 24px;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    margin: 0 24px 24px 24px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
     color: #e2e8f0;
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(255, 255, 255, 0.05);
 }
 
 /* Left Section: District & Repos */
@@ -40,8 +44,8 @@
 }
 
 .hud-progress-icon {
-    font-size: 20px;
-    opacity: 0.8;
+    font-size: 24px;
+    filter: drop-shadow(0 0 8px #6c5ce7);
 }
 
 .hud-district-info {
@@ -51,17 +55,20 @@
 }
 
 .hud-district-name {
-    font-weight: 700;
-    font-size: 14px;
-    letter-spacing: 1px;
+    font-weight: 800;
+    font-size: 16px;
+    letter-spacing: 2px;
     text-transform: uppercase;
     color: #ffffff;
+    text-shadow: 0 0 10px rgba(108, 92, 231, 0.5);
 }
 
 .hud-repo-count {
-    font-size: 11px;
-    color: #94a3b8;
+    font-size: 10px;
+    font-weight: 600;
+    color: #a29bfe;
     text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 /* Center Section: User & Car Info */
@@ -74,15 +81,19 @@
 }
 
 .hud-username {
-    font-size: 14px;
-    font-weight: 700;
-    color: #ffffff;
+    font-size: 16px;
+    font-weight: 800;
+    color: #00f5a0;
+    text-shadow: 0 0 10px rgba(0, 245, 160, 0.4);
 }
 
 .hud-car-tier {
-    font-size: 11px;
+    font-size: 10px;
+    font-weight: 600;
     color: #94a3b8;
     text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 2px;
 }
 
 /* Right Section: Speed & Minimap Area */
@@ -97,76 +108,98 @@
 .hud-coins {
     display: flex;
     align-items: center;
-    gap: 4px;
-    margin-top: 2px;
+    gap: 6px;
+    background: rgba(255, 215, 0, 0.1);
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 215, 0, 0.2);
 }
 
 .coin-icon {
-    font-size: 14px;
+    font-size: 16px;
+    filter: drop-shadow(0 0 5px #FFD700);
 }
 
 .coin-count {
-    font-size: 12px;
+    font-size: 14px;
     color: #FFD700;
     letter-spacing: 1px;
-    font-weight: 700;
+    font-weight: 800;
 }
 
 .hud-speed {
     display: flex;
     align-items: baseline;
     gap: 6px;
+    position: relative;
+    padding-right: 12px;
 }
 
 .speed-value {
-    font-size: 32px;
-    font-weight: 700;
+    font-size: 42px;
+    font-weight: 900;
     color: #ffffff;
-    min-width: 56px;
+    min-width: 64px;
     text-align: right;
     line-height: 1;
+    font-family: 'Orbitron', sans-serif;
+    text-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
 }
 
 .speed-unit {
     font-size: 12px;
-    color: #94a3b8;
+    font-weight: 700;
+    color: #a29bfe;
     text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
 /* Action Buttons */
 .hud-actions {
     display: flex;
-    gap: 8px;
+    gap: 10px;
     margin-left: 16px;
     padding-left: 16px;
     border-left: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .hud-btn {
-    background: transparent;
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     color: #e2e8f0;
-    height: 32px;
-    min-width: 32px;
+    height: 36px;
+    padding: 0 12px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 4px;
+    border-radius: 8px;
     cursor: pointer;
     font-family: inherit;
-    font-size: 12px;
-    transition: all 0.2s ease;
+    font-size: 11px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     text-transform: uppercase;
-    font-weight: 600;
+    font-weight: 700;
+    letter-spacing: 1px;
 }
 
 .hud-btn:hover {
-    background: rgba(255, 255, 255, 0.1);
-    border-color: rgba(255, 255, 255, 0.4);
+    background: rgba(108, 92, 231, 0.2);
+    border-color: #6c5ce7;
+    color: #ffffff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(108, 92, 231, 0.3);
 }
 
 .hud-btn-primary {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(0, 245, 160, 0.1);
+    border-color: rgba(0, 245, 160, 0.2);
+    color: #00f5a0;
+}
+
+.hud-btn-primary:hover {
+    background: rgba(0, 245, 160, 0.2);
+    border-color: #00f5a0;
+    box-shadow: 0 4px 12px rgba(0, 245, 160, 0.3);
 }
 
 /* Controls Hint (Floats briefly at start) */

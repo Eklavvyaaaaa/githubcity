@@ -152,11 +152,30 @@ function HUD() {
 
                 <div className="hud-section-center">
                     <div className="hud-username">@{username}</div>
-                    <div className="hud-car-tier">DRIVING: {CAR_TIER_NAMES[carTier] || 'CAR'}</div>
+                    <div className="hud-car-tier">{CAR_TIER_NAMES[carTier] || 'CAR'}</div>
                 </div>
 
                 <div className="hud-section-right">
                     <div className="hud-speed">
+                        {/* Speed Bar */}
+                        <div style={{
+                            position: 'absolute',
+                            bottom: '-8px',
+                            left: '0',
+                            width: '100%',
+                            height: '4px',
+                            background: 'rgba(255,255,255,0.1)',
+                            borderRadius: '2px',
+                            overflow: 'hidden'
+                        }}>
+                            <div style={{
+                                width: `${Math.min((carSpeed / 120) * 100, 100)}%`,
+                                height: '100%',
+                                background: 'linear-gradient(90deg, #6c5ce7, #00f5a0)',
+                                boxShadow: '0 0 10px rgba(108,92,231,0.5)',
+                                transition: 'width 0.1s linear'
+                            }} />
+                        </div>
                         <span className="speed-value">{Math.round(carSpeed)}</span>
                         <span className="speed-unit">KM/H</span>
                     </div>
@@ -172,16 +191,15 @@ function HUD() {
                         <button
                             className={`hud-btn ${isSkylineView ? 'hud-btn-active' : ''}`}
                             onClick={() => { playUIClick(); setIsSkylineView(!isSkylineView) }}
-                            style={isSkylineView ? { background: 'var(--accent)', color: '#000' } : {}}
+                            style={isSkylineView ? { background: '#6c5ce7', color: '#fff', borderColor: '#6c5ce7' } : {}}
                         >
-                            {isSkylineView ? 'DRIVING VIEW' : 'SKYLINE VIEW'}
+                            {isSkylineView ? 'DRIVING' : 'SKYLINE'}
                         </button>
                         <button className="hud-btn" onClick={() => { playUIClick(); setGamePhase('garage') }}>GARAGE</button>
                         <button className="hud-btn" onClick={() => { playUIClick(); handleScreenshot() }} title="Screenshot">📸</button>
                         <button className="hud-btn hud-btn-primary" onClick={() => { playUIClick(); handleShare() }}>
                             {shareStatus || 'SHARE'}
                         </button>
-                        <button className="hud-btn" onClick={() => { playUIClick(); reset() }} title="Exit">EXIT</button>
                     </div>
                 </div>
 

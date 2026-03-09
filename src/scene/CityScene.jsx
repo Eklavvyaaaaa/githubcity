@@ -1,6 +1,8 @@
 import { useRef, useMemo, useEffect, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Html, Text } from '@react-three/drei'
+import { Html, Text, Environment, ContactShadows, Float } from '@react-three/drei'
+import { EffectComposer, Bloom, Vignette, ChromaticAberration, Noise, ToneMapping } from '@react-three/postprocessing'
+import { BlendFunction } from 'postprocessing'
 import * as THREE from 'three'
 import useStore from '../store/store'
 import { startEngine, updateEngineSound, stopEngine, playTireScreech, playJumpSound, playLandThud, playCoinCollect } from '../services/audio'
@@ -11,20 +13,24 @@ import Clouds from './Clouds'
 // Shared materials (reuse across all meshes)
 // ===========================
 const SHARED_MATERIALS = {
-    road: new THREE.MeshLambertMaterial({ color: '#555555', flatShading: true }),
-    ground: new THREE.MeshLambertMaterial({ color: '#2b3a32', flatShading: true }), // Grey-green ground
-    sidewalk: new THREE.MeshLambertMaterial({ color: '#444444', flatShading: true }),
-    dashLine: new THREE.MeshBasicMaterial({ color: '#eeeeee' }), // White lines
-    redLine: new THREE.MeshBasicMaterial({ color: '#dd4444' }), // Red lines
-    lampPole: new THREE.MeshLambertMaterial({ color: '#333333', flatShading: true }),
-    lampBulb: new THREE.MeshBasicMaterial({ color: '#FFE4A0' }),
-    treeTrunk: new THREE.MeshLambertMaterial({ color: '#4A3528', flatShading: true }),
-    treeTop1: new THREE.MeshLambertMaterial({ color: '#2d4c32', flatShading: true }),
-    treeTop2: new THREE.MeshLambertMaterial({ color: '#3a5f41', flatShading: true }),
-    parkGround: new THREE.MeshLambertMaterial({ color: '#2b3a32', flatShading: true }),
-    wheel: new THREE.MeshLambertMaterial({ color: '#1a1a1a', flatShading: true }),
-    rooftopUnit: new THREE.MeshLambertMaterial({ color: '#444444', flatShading: true }),
-    window: new THREE.MeshBasicMaterial({ color: '#FFE4A0', transparent: true, opacity: 0.8 }),
+    road: new THREE.MeshStandardMaterial({ color: '#1a1a1a', roughness: 0.2, metalness: 0.1 }),
+    ground: new THREE.MeshStandardMaterial({ color: '#0d1117', roughness: 0.8, metalness: 0.1 }),
+    sidewalk: new THREE.MeshStandardMaterial({ color: '#2d333b', roughness: 0.5, metalness: 0.1 }),
+    dashLine: new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#ffffff', emissiveIntensity: 1 }),
+    redLine: new THREE.MeshStandardMaterial({ color: '#dd4444', emissive: '#dd4444', emissiveIntensity: 1 }),
+    lampPole: new THREE.MeshStandardMaterial({ color: '#1a1a1a', roughness: 0.3, metalness: 0.8 }),
+    lampBulb: new THREE.MeshStandardMaterial({ color: '#FFE4A0', emissive: '#FFE4A0', emissiveIntensity: 5 }),
+    treeTrunk: new THREE.MeshStandardMaterial({ color: '#2d1b0d', roughness: 0.9 }),
+    treeTop1: new THREE.MeshStandardMaterial({ color: '#0e2a1a', roughness: 0.8 }),
+    treeTop2: new THREE.MeshStandardMaterial({ color: '#1a3a2a', roughness: 0.8 }),
+    parkGround: new THREE.MeshStandardMaterial({ color: '#0d1a10', roughness: 0.9 }),
+    wheel: new THREE.MeshStandardMaterial({ color: '#050505', roughness: 0.9 }),
+    rooftopUnit: new THREE.MeshStandardMaterial({ color: '#1c2128', roughness: 0.5 }),
+    window: new THREE.MeshStandardMaterial({ color: '#6c5ce7', emissive: '#6c5ce7', emissiveIntensity: 2, transparent: true, opacity: 0.8 }),
+    headlight: new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#ffffff', emissiveIntensity: 10 }),
+    taillight: new THREE.MeshStandardMaterial({ color: '#ff0000', emissive: '#ff0000', emissiveIntensity: 5 }),
+    billboard: new THREE.MeshStandardMaterial({ color: '#0a0a0a' }),
+    billboardGlow: new THREE.MeshStandardMaterial({ color: '#00f5a0', emissive: '#00f5a0', emissiveIntensity: 2 }),
 }
 
 // Shared geometries
@@ -80,7 +86,7 @@ function InstancedBuildings({ buildings }) {
 
     return (
         <instancedMesh ref={meshRef} args={[SHARED_GEOS.box, null, count]} receiveShadow frustumCulled={false}>
-            <meshLambertMaterial vertexColors flatShading={true} />
+            <meshStandardMaterial vertexColors roughness={0.6} metalness={0.2} />
         </instancedMesh>
     )
 }
@@ -536,7 +542,7 @@ const CAR_CONFIGS = [
 ]
 
 // Ref to share car position with camera without scene traversal
-const carStateRef = { current: { position: new THREE.Vector3(8, 0, 8), rotation: 0 } }
+const carStateRef = { current: { position: new THREE.Vector3(8, 0, 8), rotation: 0, lastCollisionTime: 0 } }
 
 function Car({ carTier, buildings, spawnPos }) {
     const groupRef = useRef()
@@ -649,6 +655,7 @@ function Car({ carTier, buildings, spawnPos }) {
             s.position.z = newZ;
         } else {
             s.velocity *= -0.2
+            carStateRef.current.lastCollisionTime = performance.now()
         }
 
         // --- Jump physics ---
@@ -870,6 +877,16 @@ function CameraController({ bounds }) {
         }
 
         camera.position.lerp(targetPos.current, 0.06)
+
+        // --- Screen Shake ---
+        const timeSinceCollision = performance.now() - carStateRef.current.lastCollisionTime
+        if (timeSinceCollision < 500) {
+            const intensity = (1 - timeSinceCollision / 500) * 0.5
+            camera.position.x += (Math.random() - 0.5) * intensity
+            camera.position.y += (Math.random() - 0.5) * intensity
+            camera.position.z += (Math.random() - 0.5) * intensity
+        }
+
         camera.lookAt(lookTarget.current)
     })
 
@@ -962,7 +979,7 @@ function Rain() {
             <bufferGeometry>
                 <bufferAttribute attach="attributes-position" count={count} array={positions} itemSize={3} />
             </bufferGeometry>
-            <pointsMaterial size={0.1} color="#6688cc" transparent opacity={0.4} sizeAttenuation />
+            <pointsMaterial size={0.15} color="#a29bfe" transparent opacity={0.6} sizeAttenuation blending={THREE.AdditiveBlending} />
         </points>
     )
 }
@@ -1308,9 +1325,27 @@ export default function CityScene() {
                 <fog attach="fog" args={[fogColor, fogNear, fogFar]} />
 
                 {/* Lighting — minimal lights for performance */}
-                <ambientLight intensity={0.35} color="#5566aa" />
-                <directionalLight position={[100, 100, 50]} intensity={1.5} color="#ffffff" />
-                <hemisphereLight intensity={0.2} color="#6666aa" groundColor="#000011" />
+                <Environment preset="city" />
+                <ambientLight intensity={0.2} />
+                <directionalLight position={[100, 100, 50]} intensity={0.5} color="#ffffff" castShadow />
+                <hemisphereLight intensity={0.5} color="#6c5ce7" groundColor="#000000" />
+
+                {/* Post-processing Stack */}
+                <EffectComposer disableNormalPass multisampling={4}>
+                    <Bloom
+                        intensity={1.5}
+                        luminanceThreshold={0.5}
+                        luminanceSmoothing={0.9}
+                        mipmapBlur
+                    />
+                    <ChromaticAberration
+                        offset={[0.001, 0.001]}
+                        blendFunction={BlendFunction.NORMAL}
+                    />
+                    <Vignette eskil={false} offset={0.1} darkness={1.1} />
+                    <Noise opacity={0.02} />
+                    <ToneMapping mode={THREE.ACESFilmicToneMapping} />
+                </EffectComposer>
 
 
                 {/* Location Tracker for new HUD */}
