@@ -31,6 +31,8 @@ function HUD() {
     const activeRepo = useStore((s) => s.activeRepo)
     const isSkylineView = useStore((s) => s.isSkylineView)
     const setIsSkylineView = useStore((s) => s.setIsSkylineView)
+    const timelineDayOffset = useStore((s) => s.timelineDayOffset)
+    const setTimelineDayOffset = useStore((s) => s.setTimelineDayOffset)
 
     const setGamePhase = useStore((s) => s.setGamePhase)
     const reset = useStore((s) => s.reset)
@@ -129,14 +131,22 @@ function HUD() {
             {/* Detailed Repo Stats Panel (Shows on 'E') */}
             <RepoInfoPanel />
 
-            {/* 2D Building Tooltip */}
-            <div className={`building-tooltip-overlay ${nearbyBuilding ? '' : 'hidden'}`}>
-                <div className="building-name">{nearbyBuilding?.name || 'Unknown Repo'}</div>
-                <div className="building-stats">
-                    <span>⭐ {nearbyBuilding?.stars || 0}</span>
-                    <span>{nearbyBuilding?.language || 'Markdown'}</span>
+            {/* Timeline Scrubber */}
+            <div className="hud-timeline-container">
+                <div className="timeline-header">
+                    <span className="timeline-title">COMMIT TIMELINE</span>
+                    <span className="timeline-date">
+                        {new Date(Date.now() + timelineDayOffset * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </span>
                 </div>
-                <div className="building-action-hint">PRESS [E] FOR STATS</div>
+                <input
+                    type="range"
+                    min="-365"
+                    max="0"
+                    value={timelineDayOffset}
+                    onChange={(e) => setTimelineDayOffset(parseInt(e.target.value))}
+                    className="timeline-slider"
+                />
             </div>
 
             {/* Single Bottom Bar PolyTrack Style */}

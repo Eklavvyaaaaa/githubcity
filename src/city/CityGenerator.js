@@ -105,6 +105,18 @@ export function generateCity(user, repos) {
             // Determine if repo has any real activity
             const hasActivity = stars > 0 || forks > 0 || daysSinceUpdate < 365
 
+            // Building shape based on language
+            let shape = 'box'
+            if (['HTML', 'CSS', 'Vue', 'Svelte', 'Astro'].includes(lang)) {
+                shape = 'cylinder'
+            } else if (['Python', 'Jupyter Notebook', 'R', 'Ruby'].includes(lang)) {
+                shape = 'cylinder'
+            } else if (['Rust', 'C++', 'C', 'Go', 'Assembly'].includes(lang)) {
+                shape = 'hex'
+            } else if (['JavaScript', 'TypeScript', 'Java', 'C#', 'PHP'].includes(lang)) {
+                shape = 'box'
+            }
+
             if (!hasActivity && Math.random() > 0.5) {
                 // Zero-activity repo → park
                 parks.push({
@@ -126,6 +138,7 @@ export function generateCity(user, repos) {
                     width,
                     height: Math.max(height, 4),
                     depth,
+                    shape,
                     color: style.primary,
                     secondaryColor: style.secondary,
                     accentColor: style.accent,

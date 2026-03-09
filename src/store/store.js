@@ -48,6 +48,10 @@ const useStore = create((set, get) => ({
   isSkylineView: false,
   setIsSkylineView: (val) => set({ isSkylineView: val }),
 
+  // Time Travel Timeline
+  timelineDayOffset: 0, // 0 = today, -365 = 1 year ago
+  setTimelineDayOffset: (offset) => set({ timelineDayOffset: offset }),
+
   // Atmosphere
   weather: 'clear', // 'clear' | 'cloudy' | 'rainy' | 'foggy'
   setWeather: (weather) => set({ weather }),

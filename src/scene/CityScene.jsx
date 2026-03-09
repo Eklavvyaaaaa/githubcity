@@ -36,6 +36,8 @@ const SHARED_MATERIALS = {
 // Shared geometries
 const SHARED_GEOS = {
     box: new THREE.BoxGeometry(1, 1, 1),
+    cylinder: new THREE.CylinderGeometry(0.5, 0.5, 1, 16),
+    hex: new THREE.CylinderGeometry(0.5, 0.5, 1, 6),
     lampPole: new THREE.CylinderGeometry(0.06, 0.1, 5, 6),
     lampArm: new THREE.CylinderGeometry(0.04, 0.04, 1.2, 4),
     lampBulb: new THREE.SphereGeometry(0.2, 6, 6),
@@ -49,9 +51,10 @@ const SHARED_GEOS = {
 // ===========================
 // Instanced Buildings (HUGE perf gain)
 // ===========================
-function InstancedBuildings({ buildings }) {
+function InstancedShapeGroup({ shape, buildings }) {
     const meshRef = useRef()
     const dummy = useMemo(() => new THREE.Object3D(), [])
+    const lastOffsetRef = useRef(null)
 
     const { colorArray, count } = useMemo(() => {
         const colors = new Float32Array(buildings.length * 3)
@@ -70,24 +73,63 @@ function InstancedBuildings({ buildings }) {
 
     useEffect(() => {
         if (!meshRef.current || count === 0) return
+        meshRef.current.geometry.setAttribute('color', new THREE.InstancedBufferAttribute(colorArray, 3))
+    }, [colorArray, count])
+
+    useFrame(() => {
+        if (!meshRef.current || count === 0) return
+        const offset = useStore.getState().timelineDayOffset;
+
+        if (lastOffsetRef.current === offset) return;
+        lastOffsetRef.current = offset;
+
+        const travelTimeMs = Date.now() + offset * 24 * 60 * 60 * 1000;
+
         buildings.forEach((b, i) => {
-            dummy.position.set(b.x, b.height / 2, b.z)
-            dummy.scale.set(b.width, b.height, b.depth)
+            const createdMs = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            const pushedMs = b.lastPush ? new Date(b.lastPush).getTime() : Date.now();
+
+            let scaleY = 1;
+            if (travelTimeMs < createdMs) {
+                scaleY = 0.001;
+            } else if (pushedMs > createdMs) {
+                scaleY = (travelTimeMs - createdMs) / (pushedMs - createdMs);
+                if (scaleY > 1) scaleY = 1;
+                if (scaleY < 0.001) scaleY = 0.001;
+            }
+
+            dummy.position.set(b.x, (b.height * scaleY) / 2, b.z)
+            dummy.scale.set(b.width, b.height * scaleY, b.depth)
+            if (shape === 'hex') {
+                dummy.rotation.set(0, Math.PI / 6, 0)
+            } else {
+                dummy.rotation.set(0, 0, 0)
+            }
             dummy.updateMatrix()
             meshRef.current.setMatrixAt(i, dummy.matrix)
         })
         meshRef.current.instanceMatrix.needsUpdate = true
-        meshRef.current.geometry.setAttribute(
-            'color', new THREE.InstancedBufferAttribute(colorArray, 3)
-        )
-    }, [buildings, colorArray, count, dummy])
+    })
 
     if (count === 0) return null
 
+    const geometry = SHARED_GEOS[shape] || SHARED_GEOS.box;
+
     return (
-        <instancedMesh ref={meshRef} args={[SHARED_GEOS.box, null, count]} receiveShadow frustumCulled={false}>
+        <instancedMesh ref={meshRef} args={[geometry, null, count]} receiveShadow frustumCulled={false}>
             <meshStandardMaterial vertexColors roughness={0.6} metalness={0.2} />
         </instancedMesh>
+    )
+}
+
+function InstancedBuildings({ buildings }) {
+    const shapes = ['box', 'cylinder', 'hex']
+    return (
+        <group>
+            {shapes.map(shape => (
+                <InstancedShapeGroup key={shape} shape={shape} buildings={buildings.filter(b => (b.shape || 'box') === shape)} />
+            ))}
+        </group>
     )
 }
 
@@ -107,41 +149,65 @@ function BuildingWindows({ buildings }) {
             const rows = b.windowRows || 0
             const cols = b.windowCols || 0
 
-            // Front & Back walls
-            for (let r = 0; r < rows; r++) {
-                const py = 1.5 + r * 4
-                if (py > b.height - 1) continue
+            // Window placement logic based on shape
+            if (b.shape === 'cylinder' || b.shape === 'hex') {
+                const radiusX = b.width / 2 + 0.1;
+                const radiusZ = b.depth / 2 + 0.1;
+                const approxCircumference = Math.PI * (radiusX + radiusZ);
+                const windowCols = Math.max(1, Math.floor(approxCircumference / 3.0));
 
-                for (let c = 0; c < cols; c++) {
-                    const px = b.x - b.width / 2 + 1.25 + c * 2.5
-
-                    // Front facade
-                    if (Math.random() > 0.3) {
-                        data.push({ x: px, y: py, z: b.z + b.depth / 2 + 0.15 })
-                    }
-                    // Back facade
-                    if (Math.random() > 0.3) {
-                        data.push({ x: px, y: py, z: b.z - b.depth / 2 - 0.15 })
+                for (let r = 0; r < rows; r++) {
+                    const py = 1.5 + r * 4;
+                    if (py > b.height - 1) continue;
+                    for (let c = 0; c < windowCols; c++) {
+                        const angle = (c / windowCols) * Math.PI * 2;
+                        if (Math.random() > 0.3) {
+                            data.push({
+                                x: b.x + Math.cos(angle) * radiusX,
+                                y: py,
+                                z: b.z + Math.sin(angle) * radiusZ,
+                                rotationY: -angle + Math.PI / 2
+                            });
+                        }
                     }
                 }
-            }
+            } else {
+                // Box (Front, Back, Left, Right) walls
+                for (let r = 0; r < rows; r++) {
+                    const py = 1.5 + r * 4
+                    if (py > b.height - 1) continue
 
-            // Left & Right walls (simplified)
-            for (let r = 0; r < rows; r++) {
-                const py = 1.5 + r * 4
-                if (py > b.height - 1) continue
+                    for (let c = 0; c < cols; c++) {
+                        const px = b.x - b.width / 2 + 1.25 + c * 2.5
 
-                const sideCols = Math.max(1, Math.floor(b.depth / 2.5))
-                for (let c = 0; c < sideCols; c++) {
-                    const pz = b.z - b.depth / 2 + 1.25 + c * 2.5
-
-                    // Right
-                    if (Math.random() > 0.3) {
-                        data.push({ x: b.x + b.width / 2 + 0.15, y: py, z: pz })
+                        // Front facade
+                        if (Math.random() > 0.3) {
+                            data.push({ x: px, baseY: py, z: b.z + b.depth / 2 + 0.15, createdMs: b.createdAt ? new Date(b.createdAt).getTime() : 0, pushedMs: b.lastPush ? new Date(b.lastPush).getTime() : Date.now(), bHeight: b.height })
+                        }
+                        // Back facade
+                        if (Math.random() > 0.3) {
+                            data.push({ x: px, baseY: py, z: b.z - b.depth / 2 - 0.15, createdMs: b.createdAt ? new Date(b.createdAt).getTime() : 0, pushedMs: b.lastPush ? new Date(b.lastPush).getTime() : Date.now(), bHeight: b.height })
+                        }
                     }
-                    // Left
-                    if (Math.random() > 0.3) {
-                        data.push({ x: b.x - b.width / 2 - 0.15, y: py, z: pz })
+                }
+
+                // Left & Right walls (simplified)
+                for (let r = 0; r < rows; r++) {
+                    const py = 1.5 + r * 4
+                    if (py > b.height - 1) continue
+
+                    const sideCols = Math.max(1, Math.floor(b.depth / 2.5))
+                    for (let c = 0; c < sideCols; c++) {
+                        const pz = b.z - b.depth / 2 + 1.25 + c * 2.5
+
+                        // Right
+                        if (Math.random() > 0.3) {
+                            data.push({ x: b.x + b.width / 2 + 0.15, baseY: py, z: pz, rotationY: Math.PI / 2, createdMs: b.createdAt ? new Date(b.createdAt).getTime() : 0, pushedMs: b.lastPush ? new Date(b.lastPush).getTime() : Date.now(), bHeight: b.height })
+                        }
+                        // Left
+                        if (Math.random() > 0.3) {
+                            data.push({ x: b.x - b.width / 2 - 0.15, baseY: py, z: pz, rotationY: Math.PI / 2, createdMs: b.createdAt ? new Date(b.createdAt).getTime() : 0, pushedMs: b.lastPush ? new Date(b.lastPush).getTime() : Date.now(), bHeight: b.height })
+                        }
                     }
                 }
             }
@@ -149,16 +215,40 @@ function BuildingWindows({ buildings }) {
         return data
     }, [buildings])
 
-    useEffect(() => {
+    const lastOffsetRef = useRef(null)
+
+    useFrame(() => {
         if (!meshRef.current || windowData.length === 0) return
+        const offset = useStore.getState().timelineDayOffset;
+
+        if (lastOffsetRef.current === offset) return;
+        lastOffsetRef.current = offset;
+
+        const travelTimeMs = Date.now() + offset * 24 * 60 * 60 * 1000;
+
         windowData.forEach((w, i) => {
-            dummy.position.set(w.x, w.y, w.z)
-            dummy.scale.set(0.6, 1.2, 0.6)
+            let scaleY = 1;
+            if (travelTimeMs < w.createdMs) {
+                scaleY = 0;
+            } else if (w.pushedMs > w.createdMs) {
+                scaleY = (travelTimeMs - w.createdMs) / (w.pushedMs - w.createdMs);
+                if (scaleY > 1) scaleY = 1;
+                if (scaleY <= 0) scaleY = 0;
+            }
+
+            if (scaleY === 0 || w.baseY > w.bHeight * scaleY) {
+                dummy.scale.set(0.001, 0.001, 0.001)
+            } else {
+                dummy.scale.set(0.6, 1.2, 0.6)
+            }
+
+            dummy.position.set(w.x, w.baseY, w.z)
+            dummy.rotation.set(0, w.rotationY || 0, 0)
             dummy.updateMatrix()
             meshRef.current.setMatrixAt(i, dummy.matrix)
         })
         meshRef.current.instanceMatrix.needsUpdate = true
-    }, [windowData, dummy])
+    })
 
     if (windowData.length === 0) return null
 
@@ -1286,6 +1376,72 @@ function SpawnBillboard({ pos, userData, repos, contributions }) {
 }
 
 // ===========================
+// Holographic Repo Terminal (3D Html Popup)
+// ===========================
+function HologramTerminal() {
+    const nearbyBuilding = useStore((s) => s.nearbyBuilding)
+    const isSkylineView = useStore((s) => s.isSkylineView)
+    const showRepoPanel = useStore((s) => s.showRepoPanel)
+
+    const groupRef = useRef()
+
+    useFrame((_, delta) => {
+        if (!groupRef.current) return
+
+        // Hide if skyline view or full 2D panel is open
+        const targetScale = (nearbyBuilding && !isSkylineView && !showRepoPanel) ? 1 : 0
+        groupRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), delta * 12)
+
+        if (nearbyBuilding && targetScale > 0) {
+            const { x, z, height, width, depth } = nearbyBuilding
+
+            // terminal pops up in space beside it
+            const targetPos = new THREE.Vector3(x, height + 6, z)
+            groupRef.current.position.lerp(targetPos, delta * 8)
+
+            // rotate slowly to feel holographic
+            groupRef.current.rotation.y += delta * 0.2
+        }
+    })
+
+    return (
+        <group ref={groupRef} scale={[0, 0, 0]}>
+            <Html center transform zIndexRange={[100, 0]} distanceFactor={20} position={[0, 0, 0]}>
+                <div style={{
+                    background: 'rgba(6, 8, 16, 0.8)',
+                    border: '1px solid rgba(0, 245, 160, 0.4)',
+                    boxShadow: '0 0 20px rgba(0, 245, 160, 0.2), inset 0 0 20px rgba(0, 245, 160, 0.1)',
+                    backdropFilter: 'blur(8px)',
+                    padding: '16px',
+                    borderRadius: '8px',
+                    color: '#00f5a0',
+                    fontFamily: '"Space Mono", monospace',
+                    width: '280px',
+                    textAlign: 'left',
+                    pointerEvents: 'none',
+                    userSelect: 'none'
+                }}>
+                    <div style={{ fontSize: '10px', opacity: 0.8, marginBottom: '4px' }}>INCOMING TRANSMISSION //</div>
+                    <div style={{ fontSize: '18px', fontWeight: 'bold', marginBottom: '8px' }}>{nearbyBuilding?.name || 'UNKNOWN'}</div>
+                    <div style={{ display: 'flex', gap: '12px', fontSize: '12px', marginBottom: '8px' }}>
+                        <span>⭐ {nearbyBuilding?.stars || 0}</span>
+                        <span>{nearbyBuilding?.language || 'MARKDOWN'}</span>
+                    </div>
+                    {nearbyBuilding?.description && (
+                        <div style={{ fontSize: '10px', opacity: 0.8, lineHeight: 1.4, maxHeight: '42px', overflow: 'hidden' }}>
+                            {nearbyBuilding.description}
+                        </div>
+                    )}
+                    <div style={{ marginTop: '12px', borderTop: '1px dashed rgba(0,245,160,0.3)', paddingTop: '8px', fontSize: '10px', textAlign: 'center' }}>
+                        [ PRESS 'E' FOR DECRYPTION ]
+                    </div>
+                </div>
+            </Html>
+        </group>
+    )
+}
+
+// ===========================
 // Main City Scene (Single Player)
 // ===========================
 export default function CityScene() {
@@ -1372,6 +1528,9 @@ export default function CityScene() {
 
                 {/* Commit Coins Mini-Game */}
                 <CommitCoins buildings={buildings} />
+
+                {/* 3D Holographic Repo Terminals */}
+                <HologramTerminal />
             </Canvas>
         </div>
     )
