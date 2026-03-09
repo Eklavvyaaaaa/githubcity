@@ -49,26 +49,62 @@ const SHARED_GEOS = {
 }
 
 // ===========================
-// Instanced Buildings (HUGE perf gain)
+// Voxel Buildings
 // ===========================
-function InstancedShapeGroup({ shape, buildings }) {
+function InstancedVoxelBuildings({ buildings }) {
     const meshRef = useRef()
     const dummy = useMemo(() => new THREE.Object3D(), [])
+    const geometry = useMemo(() => new THREE.BoxGeometry(1, 1, 1), [])
     const lastOffsetRef = useRef(null)
 
-    const { colorArray, count } = useMemo(() => {
-        const colors = new Float32Array(buildings.length * 3)
-        buildings.forEach((b, i) => {
+    // Generate voxel grid for all buildings
+    const { voxels, colorArray, count } = useMemo(() => {
+        const v = []
+        buildings.forEach(b => {
+            const cx = b.x
+            const cz = b.z
+            const w = Math.max(1, Math.floor(b.width))
+            const h = Math.max(1, Math.floor(b.height))
+            const d = Math.max(1, Math.floor(b.depth))
+
             const c = new THREE.Color(b.color)
             if (b.isWeathered) c.multiplyScalar(0.5)
             if (b.isInactive) c.multiplyScalar(0.3)
             if (b.isForked) c.lerp(new THREE.Color('#666688'), 0.3)
             if (b.isPrivate) c.set('#0a0a15')
-            colors[i * 3] = c.r
-            colors[i * 3 + 1] = c.g
-            colors[i * 3 + 2] = c.b
+
+            // Time travel data
+            const createdMs = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            const pushedMs = b.lastPush ? new Date(b.lastPush).getTime() : Date.now();
+
+            // Hollow shell voxels
+            for (let x = 0; x < w; x++) {
+                for (let y = 0; y < h; y++) {
+                    for (let z = 0; z < d; z++) {
+                        // Only render surface voxels
+                        if (x === 0 || x === w - 1 || y === h - 1 || z === 0 || z === d - 1) {
+                            v.push({
+                                x: cx - w / 2 + x + 0.5,
+                                y: y + 0.5,
+                                z: cz - d / 2 + z + 0.5,
+                                r: c.r, g: c.g, b: c.b,
+                                createdMs, pushedMs,
+                                bHeight: h
+                            })
+                        }
+                    }
+                }
+            }
         })
-        return { colorArray: colors, count: buildings.length }
+
+        const colors = new Float32Array(v.length * 3)
+        v.forEach((vox, i) => {
+            colors[i * 3] = vox.r
+            colors[i * 3 + 1] = vox.g
+            colors[i * 3 + 2] = vox.b
+        })
+
+        return { voxels: v, colorArray: colors, count: v.length }
     }, [buildings])
 
     useEffect(() => {
@@ -85,26 +121,26 @@ function InstancedShapeGroup({ shape, buildings }) {
 
         const travelTimeMs = Date.now() + offset * 24 * 60 * 60 * 1000;
 
-        buildings.forEach((b, i) => {
-            const createdMs = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-            const pushedMs = b.lastPush ? new Date(b.lastPush).getTime() : Date.now();
-
+        voxels.forEach((v, i) => {
             let scaleY = 1;
-            if (travelTimeMs < createdMs) {
-                scaleY = 0.001;
-            } else if (pushedMs > createdMs) {
-                scaleY = (travelTimeMs - createdMs) / (pushedMs - createdMs);
-                if (scaleY > 1) scaleY = 1;
-                if (scaleY < 0.001) scaleY = 0.001;
+            if (travelTimeMs < v.createdMs) {
+                scaleY = 0;
+            } else if (v.pushedMs > v.createdMs) {
+                scaleY = (travelTimeMs - v.createdMs) / (v.pushedMs - v.createdMs);
+                scaleY = Math.min(1, Math.max(0, scaleY));
             }
 
-            dummy.position.set(b.x, (b.height * scaleY) / 2, b.z)
-            dummy.scale.set(b.width, b.height * scaleY, b.depth)
-            if (shape === 'hex') {
-                dummy.rotation.set(0, Math.PI / 6, 0)
+            // Hide voxels that are higher than the current growth limit
+            // bHeight is total height. scaleY is 0 to 1.
+            const currentHeight = v.bHeight * scaleY;
+
+            if (scaleY === 0 || v.y > currentHeight + 0.5) {
+                dummy.scale.set(0, 0, 0)
             } else {
-                dummy.rotation.set(0, 0, 0)
+                dummy.scale.set(1, 1, 1) // 1x1x1 Voxels
             }
+
+            dummy.position.set(v.x, v.y, v.z)
             dummy.updateMatrix()
             meshRef.current.setMatrixAt(i, dummy.matrix)
         })
@@ -113,23 +149,11 @@ function InstancedShapeGroup({ shape, buildings }) {
 
     if (count === 0) return null
 
-    const geometry = SHARED_GEOS[shape] || SHARED_GEOS.box;
-
     return (
-        <instancedMesh ref={meshRef} args={[geometry, null, count]} receiveShadow frustumCulled={false}>
-            <meshStandardMaterial vertexColors roughness={0.6} metalness={0.2} />
+        <instancedMesh ref={meshRef} args={[geometry, null, count]} receiveShadow castShadow frustumCulled={false}>
+            {/* Smooth edges but solid pixel look */}
+            <meshStandardMaterial vertexColors roughness={0.8} metalness={0.1} />
         </instancedMesh>
-    )
-}
-
-function InstancedBuildings({ buildings }) {
-    const shapes = ['box', 'cylinder', 'hex']
-    return (
-        <group>
-            {shapes.map(shape => (
-                <InstancedShapeGroup key={shape} shape={shape} buildings={buildings.filter(b => (b.shape || 'box') === shape)} />
-            ))}
-        </group>
     )
 }
 
@@ -139,86 +163,73 @@ function InstancedBuildings({ buildings }) {
 function BuildingWindows({ buildings }) {
     const meshRef = useRef()
     const dummy = useMemo(() => new THREE.Object3D(), [])
+    const geometry = useMemo(() => new THREE.BoxGeometry(1, 1, 1), [])
 
     // Calculate total number of windows
-    const windowData = useMemo(() => {
+    const { windowData, colorArray, count } = useMemo(() => {
         const data = []
         buildings.forEach(b => {
             if (b.isInactive || b.isWeathered) return // abandoned/old repos have no lights
 
-            const rows = b.windowRows || 0
-            const cols = b.windowCols || 0
+            const createdMs = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+            const pushedMs = b.lastPush ? new Date(b.lastPush).getTime() : Date.now();
 
-            // Window placement logic based on shape
-            if (b.shape === 'cylinder' || b.shape === 'hex') {
-                const radiusX = b.width / 2 + 0.1;
-                const radiusZ = b.depth / 2 + 0.1;
-                const approxCircumference = Math.PI * (radiusX + radiusZ);
-                const windowCols = Math.max(1, Math.floor(approxCircumference / 3.0));
+            const w = Math.max(1, Math.floor(b.width))
+            const h = Math.max(1, Math.floor(b.height))
+            const d = Math.max(1, Math.floor(b.depth))
 
-                for (let r = 0; r < rows; r++) {
-                    const py = 1.5 + r * 4;
-                    if (py > b.height - 1) continue;
-                    for (let c = 0; c < windowCols; c++) {
-                        const angle = (c / windowCols) * Math.PI * 2;
-                        if (Math.random() > 0.3) {
-                            data.push({
-                                x: b.x + Math.cos(angle) * radiusX,
-                                y: py,
-                                z: b.z + Math.sin(angle) * radiusZ,
-                                rotationY: -angle + Math.PI / 2
-                            });
-                        }
+            // Brightness driven directly by stars 
+            const stars = b.stars || 0;
+
+            // Linear scale up to 5x intensity, making huge bloom for highly starred repos
+            const intensity = Math.min(6, 0.8 + Math.log2(stars + 1))
+            const baseColor = new THREE.Color(b.accentColor || '#00f5a0')
+            // Using HDR values > 1 for basic material to achieve glowing bloom
+            baseColor.multiplyScalar(intensity)
+
+            // Random window placement on the voxel grid
+            for (let x = 1; x < w - 1; x += 2) {
+                for (let y = 1; y < h - 1; y += 3) {
+                    if (Math.random() > 0.4) {
+                        data.push({ x: b.x - w / 2 + x + 0.5, baseY: y + 0.5, z: b.z + d / 2 + 0.1, r: baseColor.r, g: baseColor.g, b: baseColor.b, rotationY: 0, createdMs, pushedMs, bHeight: h })
+                    }
+                    if (Math.random() > 0.4) {
+                        data.push({ x: b.x - w / 2 + x + 0.5, baseY: y + 0.5, z: b.z - d / 2 - 0.1, r: baseColor.r, g: baseColor.g, b: baseColor.b, rotationY: Math.PI, createdMs, pushedMs, bHeight: h })
                     }
                 }
-            } else {
-                // Box (Front, Back, Left, Right) walls
-                for (let r = 0; r < rows; r++) {
-                    const py = 1.5 + r * 4
-                    if (py > b.height - 1) continue
+            }
 
-                    for (let c = 0; c < cols; c++) {
-                        const px = b.x - b.width / 2 + 1.25 + c * 2.5
-
-                        // Front facade
-                        if (Math.random() > 0.3) {
-                            data.push({ x: px, baseY: py, z: b.z + b.depth / 2 + 0.15, createdMs: b.createdAt ? new Date(b.createdAt).getTime() : 0, pushedMs: b.lastPush ? new Date(b.lastPush).getTime() : Date.now(), bHeight: b.height })
-                        }
-                        // Back facade
-                        if (Math.random() > 0.3) {
-                            data.push({ x: px, baseY: py, z: b.z - b.depth / 2 - 0.15, createdMs: b.createdAt ? new Date(b.createdAt).getTime() : 0, pushedMs: b.lastPush ? new Date(b.lastPush).getTime() : Date.now(), bHeight: b.height })
-                        }
+            for (let z = 1; z < d - 1; z += 2) {
+                for (let y = 1; y < h - 1; y += 3) {
+                    if (Math.random() > 0.4) {
+                        data.push({ x: b.x + w / 2 + 0.1, baseY: y + 0.5, z: b.z - d / 2 + z + 0.5, r: baseColor.r, g: baseColor.g, b: baseColor.b, rotationY: Math.PI / 2, createdMs, pushedMs, bHeight: h })
                     }
-                }
-
-                // Left & Right walls (simplified)
-                for (let r = 0; r < rows; r++) {
-                    const py = 1.5 + r * 4
-                    if (py > b.height - 1) continue
-
-                    const sideCols = Math.max(1, Math.floor(b.depth / 2.5))
-                    for (let c = 0; c < sideCols; c++) {
-                        const pz = b.z - b.depth / 2 + 1.25 + c * 2.5
-
-                        // Right
-                        if (Math.random() > 0.3) {
-                            data.push({ x: b.x + b.width / 2 + 0.15, baseY: py, z: pz, rotationY: Math.PI / 2, createdMs: b.createdAt ? new Date(b.createdAt).getTime() : 0, pushedMs: b.lastPush ? new Date(b.lastPush).getTime() : Date.now(), bHeight: b.height })
-                        }
-                        // Left
-                        if (Math.random() > 0.3) {
-                            data.push({ x: b.x - b.width / 2 - 0.15, baseY: py, z: pz, rotationY: Math.PI / 2, createdMs: b.createdAt ? new Date(b.createdAt).getTime() : 0, pushedMs: b.lastPush ? new Date(b.lastPush).getTime() : Date.now(), bHeight: b.height })
-                        }
+                    if (Math.random() > 0.4) {
+                        data.push({ x: b.x - w / 2 - 0.1, baseY: y + 0.5, z: b.z - d / 2 + z + 0.5, r: baseColor.r, g: baseColor.g, b: baseColor.b, rotationY: -Math.PI / 2, createdMs, pushedMs, bHeight: h })
                     }
                 }
             }
         })
-        return data
+
+        const colors = new Float32Array(data.length * 3)
+        data.forEach((wd, i) => {
+            colors[i * 3] = wd.r
+            colors[i * 3 + 1] = wd.g
+            colors[i * 3 + 2] = wd.b
+        })
+
+        return { windowData: data, colorArray: colors, count: data.length }
     }, [buildings])
+
+    useEffect(() => {
+        if (!meshRef.current || count === 0) return
+        meshRef.current.geometry.setAttribute('color', new THREE.InstancedBufferAttribute(colorArray, 3))
+    }, [colorArray, count])
 
     const lastOffsetRef = useRef(null)
 
     useFrame(() => {
-        if (!meshRef.current || windowData.length === 0) return
+        if (!meshRef.current || count === 0) return
         const offset = useStore.getState().timelineDayOffset;
 
         if (lastOffsetRef.current === offset) return;
@@ -232,12 +243,13 @@ function BuildingWindows({ buildings }) {
                 scaleY = 0;
             } else if (w.pushedMs > w.createdMs) {
                 scaleY = (travelTimeMs - w.createdMs) / (w.pushedMs - w.createdMs);
-                if (scaleY > 1) scaleY = 1;
-                if (scaleY <= 0) scaleY = 0;
+                scaleY = Math.min(1, Math.max(0, scaleY));
             }
 
-            if (scaleY === 0 || w.baseY > w.bHeight * scaleY) {
-                dummy.scale.set(0.001, 0.001, 0.001)
+            // Hide windows that are higher than the current growth limit
+            const currentHeight = w.bHeight * scaleY;
+            if (scaleY === 0 || w.baseY > currentHeight + 0.5) {
+                dummy.scale.set(0, 0, 0)
             } else {
                 dummy.scale.set(0.6, 1.2, 0.6)
             }
@@ -250,10 +262,13 @@ function BuildingWindows({ buildings }) {
         meshRef.current.instanceMatrix.needsUpdate = true
     })
 
-    if (windowData.length === 0) return null
+    if (count === 0) return null
 
     return (
-        <instancedMesh ref={meshRef} args={[SHARED_GEOS.box, SHARED_MATERIALS.window, windowData.length]} frustumCulled={false} />
+        <instancedMesh ref={meshRef} args={[geometry, null, count]} frustumCulled={false}>
+            {/* meshBasicMaterial ignores lighting and glows powerfully with Post-Processing Bloom */}
+            <meshBasicMaterial vertexColors />
+        </instancedMesh>
     )
 }
 
@@ -1156,10 +1171,13 @@ function LocationTracker({ buildings, districts }) {
 
         // 1. Nearby building
         let closest = null
-        let closestDist = 12 // Max distance to EDGE of building
+        // We calculate distance to the EDGE of the building footprint
+        // Increased max distance slightly to account for the car's bounding box and larger building footprints
+        let closestDist = 18
         for (const b of buildings) {
             const hw = b.width / 2;
             const hz = b.depth / 2;
+            // distance from car to the closest point on the building's bounding box
             const dx = Math.max(0, Math.abs(carPos.x - b.x) - hw);
             const dz = Math.max(0, Math.abs(carPos.z - b.z) - hz);
             const dist = Math.sqrt(dx * dx + dz * dz);
@@ -1169,6 +1187,12 @@ function LocationTracker({ buildings, districts }) {
                 closest = b
             }
         }
+
+        if (closest && closest.id !== lastCheck.current_closest_id) {
+            console.log("New closest building detected:", closest.name, closest)
+            lastCheck.current_closest_id = closest.id
+        }
+
         setNearbyBuilding(closest)
 
         // 2. Current district
@@ -1310,8 +1334,8 @@ export function CityEnvironment({ cityData, weather, userData, repos, contributi
             {/* Environment */}
             {weather === 'rainy' && <Rain />}
 
-            {/* Static City Elements */}
-            <InstancedBuildings buildings={buildings} />
+            {/* Static City Elements (Now Voxel Style) */}
+            <InstancedVoxelBuildings buildings={buildings} />
 
             {/* Glowing Windows */}
             <BuildingWindows buildings={buildings} />
@@ -1390,23 +1414,44 @@ function HologramTerminal() {
 
         // Hide if skyline view or full 2D panel is open
         const targetScale = (nearbyBuilding && !isSkylineView && !showRepoPanel) ? 1 : 0
-        groupRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), delta * 12)
 
-        if (nearbyBuilding && targetScale > 0) {
+        // Use visible to stop rendering completely when scale is near 0
+        if (targetScale === 0 && groupRef.current.scale.x < 0.05) {
+            groupRef.current.visible = false
+            groupRef.current.scale.set(0, 0, 0)
+        } else {
+            groupRef.current.visible = true
+            groupRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), delta * 12)
+        }
+
+        if (nearbyBuilding && groupRef.current.visible) {
             const { x, z, height, width, depth } = nearbyBuilding
 
-            // terminal pops up in space beside it
-            const targetPos = new THREE.Vector3(x, height + 6, z)
-            groupRef.current.position.lerp(targetPos, delta * 8)
+            // Find car position to place popup on the side facing the player
+            // Fallback gracefully if car is absent
+            const carPos = carStateRef.current ? carStateRef.current.position : { x: 0, y: 0, z: 0 }
 
-            // rotate slowly to feel holographic
-            groupRef.current.rotation.y += delta * 0.2
+            // Vector from building to car
+            const dx = carPos.x - x
+            const dz = carPos.z - z
+            const dist = Math.sqrt(dx * dx + dz * dz) || 1
+
+            // Place pop-up slightly off the face towards the car
+            // offset distance handles rectangular footprints
+            const popX = x + (dx / dist) * (width * 0.5 + 2)
+            const popZ = z + (dz / dist) * (depth * 0.5 + 2)
+
+            // keep height at eye level (y=4 or slightly above car)
+            const popY = Math.max(4, height * 0.5 + 1)
+
+            const targetPos = new THREE.Vector3(popX, popY, popZ)
+            groupRef.current.position.lerp(targetPos, delta * 8)
         }
     })
 
     return (
         <group ref={groupRef} scale={[0, 0, 0]}>
-            <Html center transform zIndexRange={[100, 0]} distanceFactor={20} position={[0, 0, 0]}>
+            <Html sprite center transform distanceFactor={20} position={[0, 0, 0]}>
                 <div style={{
                     background: 'rgba(6, 8, 16, 0.8)',
                     border: '1px solid rgba(0, 245, 160, 0.4)',

@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react'
+import { useRef, useMemo, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
@@ -6,16 +6,16 @@ function Clouds({ count = 20, bounds }) {
     const meshRef = useRef()
     const dummy = useMemo(() => new THREE.Object3D(), [])
 
-    // Generate cloud data
-    const cloudData = useMemo(() => {
+    // Generate cloud data (run once)
+    const [cloudData] = useState(() => {
         const clouds = []
-        const width = bounds.maxX - bounds.minX + 200
-        const depth = bounds.maxZ - bounds.minZ + 200
+        const w = bounds.maxX - bounds.minX + 200
+        const d = bounds.maxZ - bounds.minZ + 200
 
         for (let i = 0; i < count; i++) {
             clouds.push({
-                x: bounds.minX - 100 + Math.random() * width,
-                z: bounds.minZ - 100 + Math.random() * depth,
+                x: bounds.minX - 100 + Math.random() * w,
+                z: bounds.minZ - 100 + Math.random() * d,
                 y: 40 + Math.random() * 20,
                 speed: 0.5 + Math.random() * 2,
                 scaleX: 10 + Math.random() * 15,
@@ -25,7 +25,7 @@ function Clouds({ count = 20, bounds }) {
             })
         }
         return clouds
-    }, [count, bounds])
+    })
 
     useFrame((_, delta) => {
         if (!meshRef.current) return

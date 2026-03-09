@@ -1,8 +1,9 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo } from 'react'
 import useStore from '../store/store'
 import { playUIClick } from '../services/audio'
 import Minimap from './Minimap'
 import RepoInfoPanel from './RepoInfoPanel'
+import ProfilePage from './ProfilePage'
 import './HUD.css'
 
 const CAR_TIER_NAMES = [
@@ -32,7 +33,8 @@ function HUD() {
     const isSkylineView = useStore((s) => s.isSkylineView)
     const setIsSkylineView = useStore((s) => s.setIsSkylineView)
     const timelineDayOffset = useStore((s) => s.timelineDayOffset)
-    const setTimelineDayOffset = useStore((s) => s.setTimelineDayOffset)
+    const showProfilePage = useStore((s) => s.showProfilePage)
+    const setShowProfilePage = useStore((s) => s.setShowProfilePage)
 
     const setGamePhase = useStore((s) => s.setGamePhase)
     const reset = useStore((s) => s.reset)
@@ -40,6 +42,16 @@ function HUD() {
     const [shareStatus, setShareStatus] = useState('')
 
     const totalStars = repos.reduce((sum, r) => sum + (r.stargazers_count || 0), 0)
+
+    const maxDaysOffset = useMemo(() => {
+        if (!repos || repos.length === 0) return 365
+        const oldest = repos.reduce((min, r) => {
+            const ms = new Date(r.created_at).getTime()
+            return ms < min ? ms : min
+        }, Date.now())
+        const days = Math.ceil((Date.now() - oldest) / (1000 * 60 * 60 * 24)) + 10 // pad a bit
+        return Math.max(365, days)
+    }, [repos])
 
     const fallbackCopy = async (dataUrl, text) => {
         try {
@@ -96,6 +108,12 @@ function HUD() {
     // Handle 'E' to toggle repo panel
     useEffect(() => {
         const onKeyDown = (e) => {
+            if (e.key.toLowerCase() === 'p') {
+                setShowProfilePage(!showProfilePage)
+                playUIClick()
+                return
+            }
+
             if (e.key.toLowerCase() === 'e') {
                 if (showRepoPanel) {
                     setShowRepoPanel(false)
@@ -110,7 +128,7 @@ function HUD() {
         }
         window.addEventListener('keydown', onKeyDown)
         return () => window.removeEventListener('keydown', onKeyDown)
-    }, [nearbyBuilding, showRepoPanel, setActiveRepo, setShowRepoPanel])
+    }, [nearbyBuilding, showRepoPanel, setActiveRepo, setShowRepoPanel, showProfilePage, setShowProfilePage])
 
     if (gamePhase !== 'playing') return null
 
@@ -131,23 +149,8 @@ function HUD() {
             {/* Detailed Repo Stats Panel (Shows on 'E') */}
             <RepoInfoPanel />
 
-            {/* Timeline Scrubber */}
-            <div className="hud-timeline-container">
-                <div className="timeline-header">
-                    <span className="timeline-title">COMMIT TIMELINE</span>
-                    <span className="timeline-date">
-                        {new Date(Date.now() + timelineDayOffset * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </span>
-                </div>
-                <input
-                    type="range"
-                    min="-365"
-                    max="0"
-                    value={timelineDayOffset}
-                    onChange={(e) => setTimelineDayOffset(parseInt(e.target.value))}
-                    className="timeline-slider"
-                />
-            </div>
+            {/* Profile Page Overlay (Shows on 'P') */}
+            <ProfilePage />
 
             {/* Single Bottom Bar PolyTrack Style */}
             <div className="hud-bottom-bar">
@@ -205,6 +208,7 @@ function HUD() {
                         >
                             {isSkylineView ? 'DRIVING' : 'SKYLINE'}
                         </button>
+                        <button className="hud-btn" onClick={() => { playUIClick(); setShowProfilePage(true) }}>PROFILE (P)</button>
                         <button className="hud-btn" onClick={() => { playUIClick(); setGamePhase('garage') }}>GARAGE</button>
                         <button className="hud-btn" onClick={() => { playUIClick(); handleScreenshot() }} title="Screenshot">📸</button>
                         <button className="hud-btn hud-btn-primary" onClick={() => { playUIClick(); handleShare() }}>

@@ -79,23 +79,32 @@ export function generateCity(user, repos) {
             const x = distOffsetX + localCol * CELL_SIZE + CELL_SIZE / 2
             const z = distOffsetZ + localRow * CELL_SIZE + CELL_SIZE / 2
 
-            // Building height based on stars + forks + code size
+            // Voxel Building Dimensions
             const stars = repo.stargazers_count || 0
             const forks = repo.forks_count || 0
-            const size = repo.size || 0  // KB of code — proxy for commit activity
-            const baseHeight = 4
-            const height = baseHeight
-                + Math.log2(stars + 1) * 4
-                + Math.log2(forks + 1) * 2
-                + Math.log2(size + 1) * 1.5
+            const size = repo.size || 0  // KB of code
 
-            // Building footprint scales with repo size, CLAMPED to fit within plot
-            const maxBuildingSize = BLOCK_SIZE - BUILDING_GAP * 2  // max that fits in plot
-            const sizeBonus = Math.log2(size + 1) * 0.8
-            const rawWidth = 5 + Math.random() * 2 + Math.min(sizeBonus, 7)
-            const rawDepth = 5 + Math.random() * 2 + Math.min(sizeBonus * 1.3, 9)
-            const width = Math.min(rawWidth, maxBuildingSize)
-            const depth = Math.min(rawDepth, maxBuildingSize)
+            // Estimate total contributions for this repo
+            const estimatedContributions = Math.max(1, Math.floor((size / 10) + (stars * 5) + (forks * 2)))
+
+            // Height = Total number of contributions (scaled logarithmically to fit city)
+            const height = Math.max(4, Math.floor(Math.log2(estimatedContributions + 1) * 6))
+
+            // Width/Footprint = Scaled based on whether it's a prominent public repo or total size
+            const isProminent = stars > 50 || forks > 10
+            const sizeBonus = Math.floor(Math.log2(size + 1))
+            const maxBuildingSize = BLOCK_SIZE - BUILDING_GAP * 2
+
+            let width = 6
+            let depth = 6
+
+            if (isProminent) {
+                width = Math.min(14, maxBuildingSize)
+                depth = Math.min(14, maxBuildingSize)
+            } else {
+                width = Math.min(4 + Math.floor(sizeBonus * 0.8), maxBuildingSize)
+                depth = Math.min(4 + Math.floor(sizeBonus * 0.8), maxBuildingSize)
+            }
 
             // Age/weathering based on last push
             const daysSinceUpdate = (Date.now() - new Date(repo.pushed_at).getTime()) / (1000 * 60 * 60 * 24)
@@ -105,17 +114,8 @@ export function generateCity(user, repos) {
             // Determine if repo has any real activity
             const hasActivity = stars > 0 || forks > 0 || daysSinceUpdate < 365
 
-            // Building shape based on language
-            let shape = 'box'
-            if (['HTML', 'CSS', 'Vue', 'Svelte', 'Astro'].includes(lang)) {
-                shape = 'cylinder'
-            } else if (['Python', 'Jupyter Notebook', 'R', 'Ruby'].includes(lang)) {
-                shape = 'cylinder'
-            } else if (['Rust', 'C++', 'C', 'Go', 'Assembly'].includes(lang)) {
-                shape = 'hex'
-            } else if (['JavaScript', 'TypeScript', 'Java', 'C#', 'PHP'].includes(lang)) {
-                shape = 'box'
-            }
+            // All buildings use voxel shapes now
+            let shape = 'voxel'
 
             if (!hasActivity && Math.random() > 0.5) {
                 // Zero-activity repo → park

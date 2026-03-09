@@ -38,11 +38,13 @@ const useStore = create((set, get) => ({
   nearbyBuilding: null,
   setNearbyBuilding: (b) => set({ nearbyBuilding: b }),
 
-  // Phase 8: Interactive Repo Panel
+  // Phase 8: Interactive Repo Panel & Profile Page
   activeRepo: null,
   setActiveRepo: (repo) => set({ activeRepo: repo }),
   showRepoPanel: false,
   setShowRepoPanel: (show) => set({ showRepoPanel: show }),
+  showProfilePage: false,
+  setShowProfilePage: (show) => set({ showProfilePage: show }),
 
   // Skyline Camera
   isSkylineView: false,
@@ -112,6 +114,7 @@ const useStore = create((set, get) => ({
     collectedCoinIds: new Set(),
     activeRepo: null,
     showRepoPanel: false,
+    showProfilePage: false,
   }),
 }))
 

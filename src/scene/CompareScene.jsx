@@ -55,6 +55,7 @@ export default function CompareScene() {
     const repos2 = useStore((s) => s.repos2)
     const contributions = useStore((s) => s.contributions)
     const contributions2 = useStore((s) => s.contributions2)
+    const reset = useStore((s) => s.reset)
 
     if (!cityData || !cityData2) return null
 
@@ -67,8 +68,6 @@ export default function CompareScene() {
 
     const fog1 = getFog(weather)
     const fog2 = getFog(weather2)
-
-    const reset = useStore((s) => s.reset)
 
     return (
         <div className="compare-container">

@@ -17,7 +17,7 @@ const AntigravityLanding = () => {
     const setGithubToken = useStore((s) => s.setGithubToken)
 
     // Local state
-    const [inputVal, setInputVal] = useState('')
+    const [inputVal, setInputVal] = useState(() => localStorage.getItem('gitscape_last_user') || '')
     const [tokenVal, setTokenVal] = useState('')
     const [isScrolled, setIsScrolled] = useState(false)
     const [stats, setStats] = useState({ cities: 0, days: 0, possibilities: 0, source: 0 })
@@ -37,6 +37,12 @@ const AntigravityLanding = () => {
         playUIClick()
         setUsername(cleanName)
         if (tokenVal.trim()) setGithubToken(tokenVal.trim())
+
+        // Track local usage
+        localStorage.setItem('gitscape_last_user', cleanName)
+        const currentCount = parseInt(localStorage.getItem('gitscape_cities_built') || '0')
+        localStorage.setItem('gitscape_cities_built', (currentCount + 1).toString())
+
         setGamePhase('loading')
     }, [inputVal, tokenVal, setUsername, setGithubToken, setGamePhase, setError])
 
@@ -67,16 +73,17 @@ const AntigravityLanding = () => {
     }, [])
 
     const startCountUp = () => {
+        const storedCities = parseInt(localStorage.getItem('gitscape_cities_built') || '0')
         const duration = 2000
         const startTime = performance.now()
         const animate = (now) => {
             const progress = Math.min((now - startTime) / duration, 1)
             const ease = 1 - Math.pow(1 - progress, 3) // Cubic ease out
             setStats({
-                cities: Math.floor(ease * 2000),
+                cities: Math.floor(ease * storedCities),
                 days: Math.floor(ease * 365),
                 possibilities: Math.floor(ease * 100), // Represents ∞ visually in label
-                source: Math.floor(ease * 100)
+                source: 100 // Open source is staticaly 100%
             })
             if (progress < 1) requestAnimationFrame(animate)
         }
@@ -220,8 +227,9 @@ const AntigravityLanding = () => {
                     background: var(--bg);
                     color: var(--text);
                     font-family: 'JetBrains Mono', monospace;
-                    min-height: 100vh;
+                    height: 100vh;
                     overflow-x: hidden;
+                    overflow-y: auto;
                 }
 
                 h1, h2, h3 { font-family: 'Syne', sans-serif; font-weight: 800; }
@@ -460,7 +468,7 @@ const AntigravityLanding = () => {
                     max-width: 1200px;
                     margin: 0 auto;
                     display: grid;
-                    grid-template-columns: repeat(4, 1fr);
+                    grid-template-columns: repeat(3, 1fr);
                     text-align: center;
                 }
                 .stat-item { padding: 0 40px; border-right: 1px solid var(--border); }
@@ -568,7 +576,7 @@ const AntigravityLanding = () => {
                 <div className="nav-links">
                     <a href="#how-it-works" className="nav-link">How It Works</a>
                     <a href="#features" className="nav-link">Features</a>
-                    <a href="https://github.com" target="_blank" className="nav-link">GitHub</a>
+                    <a href="https://github.com/Eklavvyaaaaa" target="_blank" className="nav-link">GitHub</a>
                 </div>
             </nav>
 
@@ -651,12 +659,8 @@ const AntigravityLanding = () => {
             <div id="stats-bar" className="stats-bar animate-on-scroll">
                 <div className="stats-content">
                     <div className="stat-item">
-                        <div className="stat-number">{stats.cities.toLocaleString()}+</div>
-                        <div className="stat-label">Cities Generated</div>
-                    </div>
-                    <div className="stat-item">
                         <div className="stat-number">{stats.days}</div>
-                        <div className="stat-label">Days of Data</div>
+                        <div className="stat-label">Max Days Spanned</div>
                     </div>
                     <div className="stat-item">
                         <div className="stat-number">∞</div>
